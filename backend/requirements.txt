@@ -1,0 +1,7 @@
+fastapi
+uvicorn
+python-socketio[asyncio_client]
+python-socketio[asyncio_server]
+aiofiles
+ltamp
+sqlmodel

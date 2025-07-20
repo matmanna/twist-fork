@@ -16,7 +16,8 @@ Inside this repository are the two main pieces that make The Twist's computing h
 ### ⚙️ Backend
 
 - **FastAPI:** The most fundamental technology powering the Pi backend is FastAPI. Through FastAPI, both REST API and websocket (important due to real-time nature of the hardware's adjustments) connections are managed and handled.
-- **SQLite:**
+- **SQLite:** 
+- **[lt25.py](https://pypi.org/project/lt25/):** My own python interface for the LT25 amp
 
 ### 🖼️ Frontend
 
@@ -53,3 +54,11 @@ To build the Svelte frontend, run:
 cd frontend
 npm run build
 ```
+
+## 🗺️ TODO
+
+- [ ] Control all amp features from device tab (like on actual amp)
+- [ ] Turn twist on/off
+- [ ] Reboot twist
+- [ ] Change twist AP/wifi configuration- [ ] Expose API and control API settings
+
