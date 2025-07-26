@@ -10,6 +10,7 @@ from fastapi import FastAPI, HTTPException
 from sqlmodel import Field, SQLModel, create_engine, Session, select, func
 
 from ltamp import LtAmp, LtAmpAsync
+import json
 
 import asyncio
 
@@ -50,6 +51,7 @@ async def websocket_endpoint(websocket: WebSocket):
         manager.disconnect(websocket)
 
 # device status
+
 class DeviceStore:
     def __init__(self):
         self.status: str = "offline"
@@ -60,6 +62,9 @@ class DeviceStore:
         self.product_name: str = ''
         self.current_preset: dict = {}
         self.audition_status: str = ''
+        self.firmware_version: str = ''
+        self.memory_usage: dict = {}
+        self.processor_usage: dict = {}
 
     async def broadcast(self):
         message = {
@@ -68,7 +73,10 @@ class DeviceStore:
             "details": self.details,
             "product_name": self.product_name,
             "current_preset": self.current_preset,
-            "audition_status": self.audition_status
+            "audition_status": self.audition_status,
+            "firmware_version": self.firmware_version,
+            "memory_usage": self.memory_usage,
+            "processor_usage": self.processor_usage,
         }
         for ws in self.connections.copy():
             try:
@@ -82,16 +90,20 @@ class DeviceStore:
             self.details = details
         await self.broadcast()
 
+
     async def update_data(self):
         if self.amp:
             try:
-                self.product_name = self.amp.request_product_id()
-                self.current_preset = self.amp.request_current_preset()
-                self.audition_status = self.amp.request_audition_state()
+                self.product_name =  await asyncio.to_thread(self.amp.request_product_id)
+                self.current_preset =  await asyncio.to_thread(self.amp.request_current_preset)
+                self.audition_status = await asyncio.to_thread(self.amp.request_audition_state)
+                self.memory_usage = await asyncio.to_thread(self.amp.request_memory_usage)
+                self.processor_usage = await asyncio.to_thread(self.amp.request_processor_utilization)
+                self.firmware_version = await asyncio.to_thread(self.amp.request_firmware_version)
                 await self.broadcast()
+                await self.set_status("online")
             except Exception as e:
                 await self.set_status("warning", {"error": str(e)})
-
 device_store = DeviceStore()
 
 # api config
@@ -100,93 +112,126 @@ device_store = DeviceStore()
 def on_startup():
     SQLModel.metadata.create_all(engine)
 
-## device api
+## device api (mainly websockets)
+
+async def heartbeat_loop():
+    while device_store.status == "online":
+        try:
+            if device_store.amp:
+                asyncio.to_thread(device_store.amp.send_heartbeat)
+                product = await asyncio.to_thread(device_store.amp.request_product_id)
+                preset = await asyncio.to_thread(device_store.amp.request_current_preset)
+                fw = await asyncio.to_thread(device_store.amp.request_firmware_version)
+                audition = await asyncio.to_thread(device_store.amp.request_audition_state)
+                memory = await asyncio.to_thread(device_store.amp.request_memory_usage)
+                proc = await asyncio.to_thread(device_store.amp.request_processor_utilization)
+
+                changed = False
+                device_store.product_name = product
+                device_store.current_preset = preset
+                device_store.audition_status = audition
+                device_store.firmware_version = fw
+                device_store.memory_usage = memory
+                device_store.processor_usage = proc
+                await device_store.broadcast()
+            await asyncio.sleep(0.8)
+        except Exception as e:
+            await device_store.set_status("warning", {"error": str(e)})
+            await device_store.broadcast()
+    device_store.status = "offline"
+    device_store.update_data()
+    
+
+async def handle_ws_action(msg):
+    action = msg.get("action")
+    if action == "connect":
+        if device_store.status in ("connecting", "syncing", "online"):
+            await device_store.set_status("warning", {"error": "Already connecting or connected."})
+        else:
+            await device_store.set_status("connecting")
+            try:
+                device_store.amp = LtAmp()
+                device_store.amp.connect()
+                await device_store.set_status("syncing")
+                device_store.amp.send_sync_begin()
+                await asyncio.sleep(1)
+                device_store.amp.send_sync_end()
+                await device_store.set_status("online")
+                if device_store.heartbeat_task is not None:
+                    device_store.heartbeat_task.cancel()
+                device_store.heartbeat_task = asyncio.create_task(heartbeat_loop())
+
+                await device_store.update_data()
+            except Exception as e:
+                await device_store.set_status("offline", {"error": str(e)})
+    elif action == "disconnect":
+        if device_store.status not in ("connecting", "syncing", "online"):
+            await device_store.set_status("warning", {"error": "Not connected."})
+        else:
+            try:
+                if device_store.heartbeat_task is not None:
+                    device_store.heartbeat_task.cancel()
+                    device_store.heartbeat_task = None
+                if device_store.amp:
+                    await asyncio.to_thread(device_store.amp.disconnect)
+                    device_store.amp = None
+                await device_store.set_status("offline")
+            except Exception as e:
+                await device_store.set_status("warning", {"error": str(e)})
+    elif action == "set_preset":
+        idx = msg.get("index")
+        if device_store.status != "online" or idx is None:
+            await device_store.set_status("warning", {"error": "Device not online or missing index."})
+        else:
+            try:
+                await asyncio.to_thread(device_store.amp.set_preset, idx)
+                await device_store.update_data()
+            except Exception as e:
+                await device_store.set_status("warning", {"error": str(e)})
+    elif action == "audition_preset":
+        preset = msg.get("preset")
+        if device_store.status != "online" or preset is None:
+            await device_store.set_status("warning", {"error": "Device not online or missing preset data."})
+        else:
+            try:
+                await asyncio.to_thread(device_store.amp.audition_preset, preset)
+                await device_store.update_data()
+            except Exception as e:
+                await device_store.set_status("warning", {"error": str(e)})
+    elif action == "refresh_status":
+        if device_store.status != "online":
+            await device_store.set_status("warning", {"error": "Device not online."})
+        else:
+            await device_store.update_data()
+    elif action == "reconnect":
+        if device_store.heartbeat_task is not None:
+            device_store.heartbeat_task.cancel()
+            device_store.heartbeat_task = None
+        if device_store.amp:
+            await asyncio.to_thread(device_store.amp.disconnect)
+            device_store.amp = None
+        await device_store.set_status("offline")
+        await handle_ws_action({"action": "connect"})
+    else:
+        await device_store.set_status("warning", {"error": f"Unknown action: {action}"})
+
 
 @app.websocket("/ws/device")
 async def ws_device(websocket: WebSocket):
     await websocket.accept()
     device_store.connections.append(websocket)
-    await websocket.send_json({
-        "type": "status_update",
-        "status": device_store.status,
-        "details": device_store.details,
-    })
+    await device_store.broadcast()
     try:
         while True:
-            await websocket.receive_text()
+            raw = await websocket.receive_text()
+            try:
+                msg = json.loads(raw)
+                await handle_ws_action(msg)
+            except Exception as e:
+                await websocket.send_json({"type": "error", "error": str(e)})
     except WebSocketDisconnect:
         if websocket in device_store.connections:
             device_store.connections.remove(websocket)
-
-async def heartbeat_loop():
-    prev_product = None
-    prev_preset = None
-    prev_audition = None
-    while device_store.status == "online":
-        try:
-            if device_store.amp:
-                product = device_store.amp.request_product_id()
-                preset = device_store.amp.request_current_preset()
-                audition = device_store.amp.request_audition_state()
-                changed = False
-                if product != prev_product:
-                    device_store.product_name = product
-                    prev_product = product
-                    changed = True
-                if preset != prev_preset:
-                    device_store.current_preset = preset["data"]
-                    prev_preset = preset
-                    changed = True
-                if audition != prev_audition:
-                    device_store.audition_status = audition
-                    prev_audition = audition
-                    changed = True
-                if changed:
-                    await device_store.broadcast()
-            await asyncio.sleep(0.8)
-        except Exception as e:
-            await device_store.set_status("warning", {"error": str(e)})
-            await device_store.broadcast()
-            break
-
-@app.post("/device/connect")
-async def connect_device():
-    if device_store.status in ("connecting", "syncing", "online"):
-        raise HTTPException(status_code=400, detail="Device already connecting or connected.")
-    await device_store.set_status("connecting")
-    try:
-        device_store.amp = LtAmp()
-        device_store.amp.connect()
-        await device_store.set_status("syncing")
-        device_store.amp.send_sync_begin()
-        asyncio.sleep(2)
-        device_store.amp.send_sync_end()
-        device_store.update_data()
-        await device_store.set_status("online")
-        if device_store.heartbeat_task is not None:
-            device_store.heartbeat_task.cancel()
-        device_store.heartbeat_task = asyncio.create_task(heartbeat_loop())
-        return {"ok": True, "status": "online"}
-    except Exception as e:
-        await device_store.set_status("offline", {"error": str(e)})
-        raise HTTPException(status_code=500, detail=f"Failed to connect: {e}")
-
-@app.post("/device/disconnect")
-async def disconnect_device():
-    if device_store.status not in ("connecting", "syncing", "online"):
-        raise HTTPException(status_code=400, detail="Device not connected.")
-    try:
-        if device_store.heartbeat_task is not None:
-            device_store.heartbeat_task.cancel()
-            device_store.heartbeat_task = None
-        if device_store.amp:
-            await device_store.amp.disconnect()
-            device_store.amp = None
-        await device_store.set_status("offline")
-        return {"ok": True, "status": "offline"}
-    except Exception as e:
-        await device_store.set_status("warning", {"error": str(e)})
-        raise HTTPException(status_code=500, detail=f"Failed to disconnect: {e}")
 
 @app.get("/device/status")
 async def get_status():
