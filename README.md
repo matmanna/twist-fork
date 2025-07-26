@@ -1,42 +1,45 @@
-# The (Bender) Twist
+# The Twist
 
 > [!IMPORTANT]
-> This repository is currently a WIP. Many of The Twist's components, resources, and documentation are still being created. **Nevertheless, leaving a star on this repo allows you to indicate your interest and follow progress!**
+> This repository is still definitely in the prototype stage with many of The Twist's components, resources, and documentation are still being WIPs. **Nevertheless, leaving a star on this repo helps with my motivation, allows you to indicate  interest, and keeps you in the loop with progress as it is made!**
 
-🌀 The Bender Twist is a [free](https://en.wikipedia.org/wiki/Free_software) platform that augments the LT25 amplifier's capabilities. This repository is a meta-repo, meaning that it primarily focuses on providing documentation for a project whose contents are spread across several sub-repos.
+🌀 The Bender Twist is a [free](https://en.wikipedia.org/wiki/Free_software), portable platform that augments the functional capabilities of the LT-series amplifiers made by a certain guitar gear brand that rhymes with "bender" and names products after horses.
 
+# 📌 This Repository
 
-## 🔖 This Respository
+This repository contains the key functionality behind the twist, which is designed to be combined with other add-ons that may be developed in the future (think rechargeable battery support, etc.)
 
-Inside this repository are the two main pieces that make The Twist's computing happen -- the **backend**, controlling the Access Point, API, and Amp connectivity, in addition to the **frontend**, which provides a user-accessible and friendly interface for using The Twist's key features. An overview of both of these parts can be found below:
+The two main parts within this codebase are the **backend server**--, controlling access point, API, and Amp connectivity functionalities-- and the **frontend control panel**, which provides a user-friendly and easily accessible interface for using and interacting with your Twist device. An overview of both of these parts can be found below in the respository's [Wiki Documentation](/wiki):
 
-> [!IMPORTANT]
-> Everything in this repository is designed and tested to be run on a Raspberry Pi Zero W. This doesn't mean it won't work on other (primarily Linux) platforms or devices, just that we don't currently support them.
+## 🚀 Getting Started
+
+> [!NOTE]
+> Everything in this repository is designed and tested to be run on a Raspberry Pi Zero 2W. This doesn't mean it won't work on other (primarily Linux) platforms or devices, just that we don't currently support them.
 
 ### ⚙️ Backend
 
 - **FastAPI:** The most fundamental technology powering the Pi backend is FastAPI. Through FastAPI, both REST API and websocket (important due to real-time nature of the hardware's adjustments) connections are managed and handled.
-- **SQLite:** 
+- **SQLite:**
 - **[lt25.py](https://pypi.org/project/lt25/):** My own python interface for the LT25 amp
 
 ### 🖼️ Frontend
 
-- **Svelte:** Valuing simplicity, the frontend control panel uses Svelte and Vite to serve static files which will be 
-- **Vite:** 
+- **Svelte:** Valuing simplicity, the frontend control panel uses Svelte and Vite to serve static files which will be
+- **Vite:**
 - **Skeleton.dev Design:**
 
 ## 🚀 Quickstart
 
 1. Install The Twist on your Pi
-  a. Flash the Official Image (Recommended)
-    Go to the latest [release](/releases), download the "twist-pi-official-image-v{semver}.img.xz" file, and follow the [flashing guide](/FLASHING.md) to get it on your pi!
-  b. Alternatively: SSH into Pi and DIY install
-    ```bash
-    git clone https://github.com/bendertools/twist-pi.git
-    cd twist-pi
-    chmod +x setup.sh
-    ./setup.sh
-    ```
+   a. Flash the Official Image (Recommended)
+   Go to the latest [release](/releases), download the "twist-pi-official-image-v{semver}.img.xz" file, and follow the [flashing guide](/FLASHING.md) to get it on your pi!
+   b. Alternatively: SSH into Pi and DIY install
+   ```bash
+   git clone https://github.com/bendertools/twist-pi.git
+   cd twist-pi
+   chmod +x scripts/setup.sh
+   ./scripts/setup.sh
+   ```
 2. Connect to the WiFi network "the-twist" and you're set!
 
 ## 💻 Developing
@@ -55,10 +58,15 @@ cd frontend
 npm run build
 ```
 
-## 🗺️ TODO
+## 🗺️ Roadmap
+
+Planned features, known bugs, and the overall project roadmap are coorinated using a combination of GitHub's Issues and Projects. The project [tab](/projects) is where more broad, long-term, and important work is tracked, while day-to-day development progress is reserved for Issues and Pull Requests.
 
 - [ ] Control all amp features from device tab (like on actual amp)
-- [ ] Turn twist on/off
-- [ ] Reboot twist
-- [ ] Change twist AP/wifi configuration- [ ] Expose API and control API settings
-
+- [ ] device control
+  - [ ] Turn twist on/off
+  - [ ] Reboot twist
+  - [ ] Change twist AP/wifi configuration- [ ] Expose API and control API setting
+- [ ] Support rPi pico
+- [ ] Multiple simultaneous devices
+  - [ ] multiple pis attached to one twist

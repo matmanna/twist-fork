@@ -1,0 +1,28 @@
+{
+  "name": "the-twist-frontend",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "format": "prettier --write .",
+    "lint": "prettier --check ."
+  },
+  "devDependencies": {
+    "@skeletonlabs/skeleton": "^3.1.4",
+    "@skeletonlabs/skeleton-svelte": "^1.2.4",
+    "@sveltejs/vite-plugin-svelte": "^6.0.0-next.1",
+    "prettier": "^3.4.2",
+    "prettier-plugin-svelte": "^3.3.3",
+    "svelte": "^5.34.7",
+    "vite": "^7.0.2"
+  },
+  "dependencies": {
+    "@lucide/svelte": "^0.525.0",
+    "@tailwindcss/vite": "^4.1.11",
+    "svelte-spa-router": "^4.0.1",
+    "tailwindcss": "^4.1.11"
+  }
+}
