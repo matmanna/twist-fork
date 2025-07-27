@@ -57,7 +57,7 @@
           oldDeviceStatus = $deviceStatus;
           reject();
         }
-      }, 2000);
+      }, 1500);
     });
   }
 
