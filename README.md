@@ -5,11 +5,20 @@
 
 🌀 The Bender Twist is a [free](https://en.wikipedia.org/wiki/Free_software), portable platform that augments the functional capabilities of LT-series amps made by a certain guitar brand that rhymes with "bender" and names products after horses.
 
-# 📌 This Repository
+## 📌 This Repository
 
 This repository contains the key functionality behind the twist, which is designed to be combined with other add-ons that may be developed in the future (think rechargeable battery support, etc.)
 
 The two main parts within this codebase are the **backend server**--, controlling access point, API, and Amp connectivity functionalities-- and the **frontend control panel**, which provides a user-friendly and easily accessible interface for using and interacting with your Twist device. An overview of both of these parts can be found in the respository's [Wiki Documentation](/wiki):
+
+## 🖼️ Setup Overview 
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="https://github.com/user-attachments/assets/58ce5217-b79b-4d99-894d-8866c4a96b48">
+  <source media="(prefers-color-scheme: light)" srcset="[light-mode-image.png](https://github.com/user-attachments/assets/c4c7d9b0-8648-43ab-8645-886d6eda53cf)">
+  <img alt="Fallback image description" src="[default-image.png](https://github.com/user-attachments/assets/c4c7d9b0-8648-43ab-8645-886d6eda53cf)">
+</picture>
+
 
 ## 🚀 Getting Started
 
