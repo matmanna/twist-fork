@@ -1,7 +1,5 @@
 <script>
-  // props
-  export let playlist;
-  export let className = undefined;
+  let { playlist, className = '' } = $props();
 
   // icons
   import IconArrowRight from '@lucide/svelte/icons/arrow-right';
@@ -42,17 +40,13 @@
     </div>
   </div>
   <div class="flex flex-row justify-end">
-    <button
-      type="button"
+    <a
+
       class="btn preset-filled w-fit"
-      onclick={() =>
-        toaster.info({
-          title: 'Coming soon!',
-          description: 'When implemented, you will be able to open this playlist.'
-        })}
+      href={`#/playlist/${playlist.id}`}
     >
       <span>Open</span>
       <IconArrowRight size={18} />
-    </button>
+    </a>
   </div>
 </div>

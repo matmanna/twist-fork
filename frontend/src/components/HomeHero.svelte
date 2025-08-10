@@ -15,7 +15,7 @@
         title: 'Coming soon!',
         description: 'When implemented, you will be able to dismiss this hero.'
       })}
-    class="absolute top-8 right-0"
+    class="absolute top-2 right-0"
   />
   <div
     class="grid grid-cols-1 md:grid-cols-[172px_550px] gap-8 md:gap-20 pt-2 lg:pt-8 md:pt-0 md:justify-items-start lg:justify-items-center px-4 md:px-8"

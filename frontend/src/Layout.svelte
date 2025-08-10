@@ -26,6 +26,8 @@
   import IconCheckCircle from '@lucide/svelte/icons/check-circle';
   import IconAlertTriangle from '@lucide/svelte/icons/alert-triangle';
   import IconXCircle from '@lucide/svelte/icons/x-circle';
+  import IconListVideo from '@lucide/svelte/icons/list-video';
+  import IconGlobe from '@lucide/svelte/icons/globe';
 
   // setup/handle device websockets
   import { onMount } from 'svelte';
@@ -40,11 +42,14 @@
     firmwareVersion,
     playlists,
     playlistsLoading,
+    playlistItems,
+    playlistItemsLoading,
     creatingPlaylist,
-    showPlaylistModal
+    showPlaylistModal,
+    allPresets,
+    presetsLoading
   } from './stores/state.js';
 
-  let syncing = $state(false);
   let oldDeviceStatus = $state('offline');
 
   function waitForSync() {
@@ -132,6 +137,10 @@
           memoryUsage.set(msg.memory_usage ?? memoryUsage);
           processorUsage.set(msg.processor_usage ?? processorUsage);
           firmwareVersion.set(msg.firmware_version ?? firmwareVersion);
+          allPresets.set(msg.presets ?? allPresets);
+          if ($allPresets && $allPresets.length > 0) {
+            presetsLoading.set(false);
+          }
         }
       } catch (e) {
         toaster.error({
@@ -164,10 +173,9 @@
         title: 'Error fetching playlists',
         description: e.message
       });
-    } finally {
-      playlistsLoading.set(false);
     }
   }
+
   async function createPlaylist(newName, newDescription) {
     creatingPlaylist.set(true);
     try {
@@ -198,10 +206,35 @@
     }
   }
 
+  async function refreshPlaylistItems() {
+    playlistItemsLoading.set(true);
+    try {
+      const res = await fetch(
+        `http://${location.host}/playlists/${$routerLocation.split('/')[2]}/items`
+      );
+      console.log(res);
+      if (!res.ok) throw new Error('Failed to fetch playlist items');
+      playlistItems.set(await res.json());
+    } catch (e) {
+      toaster.error({
+        title: 'Error fetching playlist items',
+        description: e.message
+      });
+    } finally {
+      playlistItemsLoading.set(false);
+    }
+  }
+
+  $effect(async () => {
+    if ($routerLocation.split('/').includes('playlist')) {
+      console.log($routerLocation);
+      await refreshPlaylistItems();
+    }
+  });
+
   onMount(() => {
     connectDeviceWS();
     fetchPlaylists();
-
     return () => wsDevice && wsDevice.close();
   });
 
@@ -238,6 +271,10 @@
             description: 'Name and description are required to create a playlist.'
           });
         }
+      } else if ($layoutEvents.type === 'refetch_playlist_items') {
+        if ($routerLocation.split('/').includes('playlist')) {
+          refreshPlaylistItems();
+        }
       }
 
       layoutEvents.set(null);
@@ -250,24 +287,51 @@
     <div class="mx-auto w-full max-w-5xl">
       <AppBar>
         {#snippet lead()}
-          <IconArrowLeft size={24} />
+          {#if $routerLocation.split('/').includes('playlist')}
+            <a href="/#/playlists" class="btn btn-ghost">
+              <IconArrowLeft size={24} />
+            </a>
+          {:else if $routerLocation != '/'}
+            <a href="/#/">
+              <IconHouse size={24} />
+            </a>
+          {:else}
+            <a href="/#/">
+              <IconGlobe size={24} />
+            </a>
+          {/if}
         {/snippet}
         {#snippet trail()}
           <div class="flex flex-row gap-2 items-center"><Lightswitch /></div>
         {/snippet}
         {#snippet headline()}
-          <h2 class="h2">{pageNames[$routerLocation] ?? 'Unknown'}</h2>
+          <h2 class="h2">
+            {#if $routerLocation
+              .split('/')
+              .includes('playlist') && $playlists && $playlists.length > 0}
+              {#if $playlists.find((p) => p.id == $routerLocation.split('/')[2])}
+                <div class="flex flex-row gap-2 items-center">
+                  <IconListVideo class="w-9 h-9 text-primary" />
+                  {$playlists.find((p) => p.id == $routerLocation.split('/')[2]).name}
+                </div>
+              {:else}
+                Unknown Playlist
+              {/if}
+            {:else}
+              {pageNames[$routerLocation] ?? 'Unknown'}
+            {/if}
+          </h2>
         {/snippet}
         <img src="/logo.svg" alt="Bender Logo" class="h-8 mx-auto" />
       </AppBar>
     </div>
   </header>
 
-  <main class="overflow-auto px-4 lg:px-8 py-4 flex flex-col gap-8 w-full relative pb-10">
+  <main class="w-full relative overflow-y-hidden max-h-full">
     <Toaster {toaster}></Toaster>
 
     <Router {routes} let:Component let:params>
-      <Component on:pageAction={handlePageAction} />
+      <Component {params} />
     </Router>
   </main>
 

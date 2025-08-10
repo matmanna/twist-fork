@@ -1,7 +1,7 @@
 # The Twist
 
 > [!IMPORTANT]
-> This repository is still in the prototype stage with many of The Twist's components, resources, and documentation being WIPs. **Nevertheless, leaving a star (⭐) helps the project a lot and keeps you in the loop!**
+> This repository is still in the prototype stage with many of The Twist's components, resources, and documentation being WIP. **Nevertheless, leaving a star (⭐) helps the project and keeps you in the loop!**
 
 🌀 The Bender Twist is a [free](https://en.wikipedia.org/wiki/Free_software), portable platform which augments the functional capabilities of LT-series amps made by a certain guitar brand that rhymes with "bender" and names products after horses.
 

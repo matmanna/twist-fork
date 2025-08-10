@@ -68,6 +68,7 @@
   </header>
   <div class="flex flex-col gap-4">
     <p class="text-xs opacity-60">Your amp connectivity status is currently:</p>
+		
     {#if $productName || $firmwareVersion || ($processorUsage && $processorUsage['percent'])}
       <ul class="list-inside list-disc space-y-2">
         {#if $productName}

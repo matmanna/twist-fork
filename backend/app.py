@@ -64,6 +64,7 @@ class DeviceStore:
         self.audition_status: str = ''
         self.firmware_version: str = ''
         self.memory_usage: dict = {}
+        self.presets: List[dict] = []
         self.processor_usage: dict = {}
 
     async def broadcast(self):
@@ -77,6 +78,7 @@ class DeviceStore:
             "firmware_version": self.firmware_version,
             "memory_usage": self.memory_usage,
             "processor_usage": self.processor_usage,
+            "presets": self.presets,
         }
         for ws in self.connections.copy():
             try:
@@ -90,6 +92,17 @@ class DeviceStore:
             self.details = details
         await self.broadcast()
 
+    
+    async def load_presets(self):
+        preset_idx = 1
+        preset = True
+        presets = []
+        while preset and preset_idx <= 80:
+            preset = self.amp.retrieve_preset(preset_idx)
+            if preset and "data" in preset and preset["index"] == preset_idx:
+                presets.append({"name": json.loads(preset["data"])["info"]["displayName"], "index": preset["index"]})
+            preset_idx += 1
+        device_store.presets = presets
 
     async def update_data(self):
         if self.amp:
@@ -115,10 +128,11 @@ def on_startup():
 ## device api (mainly websockets)
 
 async def heartbeat_loop():
+    asyncio.create_task(device_store.load_presets())
     while device_store.status == "online":
         try:
             if device_store.amp:
-                asyncio.to_thread(device_store.amp.send_heartbeat)
+                await asyncio.to_thread(device_store.amp.send_heartbeat)
                 product = await asyncio.to_thread(device_store.amp.request_product_id)
                 preset = await asyncio.to_thread(device_store.amp.request_current_preset)
                 fw = await asyncio.to_thread(device_store.amp.request_firmware_version)
@@ -126,7 +140,6 @@ async def heartbeat_loop():
                 memory = await asyncio.to_thread(device_store.amp.request_memory_usage)
                 proc = await asyncio.to_thread(device_store.amp.request_processor_utilization)
 
-                changed = False
                 device_store.product_name = product
                 device_store.current_preset = preset
                 device_store.audition_status = audition
@@ -139,8 +152,8 @@ async def heartbeat_loop():
             await device_store.set_status("warning", {"error": str(e)})
             await device_store.broadcast()
     device_store.status = "offline"
-    device_store.update_data()
-    
+    await device_store.update_data()
+
 
 async def handle_ws_action(msg):
     action = msg.get("action")
@@ -248,9 +261,11 @@ class Playlist(PlaylistBase, table=True):
     last_updated: Optional[datetime] = Field(default_factory=datetime.utcnow)
 
 class PlaylistItem(SQLModel, table=True):
-    id: Optional[int] = Field(default=None, primary_key=True)
+    id: int = Field(default=None, primary_key=True)  
     playlist_id: int = Field(foreign_key="playlist.id")
     preset_number: int  # 1-60
+    note: Optional[str] = None
+    position: int
 
 class PlaylistOut(PlaylistBase):
     id: int
@@ -318,17 +333,25 @@ def get_playlist(playlist_id: int):
         }
 
 @app.post("/playlists/{playlist_id}/items/", response_model=List[PlaylistItem])
-def add_items(playlist_id: int, preset_numbers: List[int]):
+def add_items(playlist_id: int, preset_numbers: List[int], notes: List[str]):
+    print(playlist_id)
     for n in preset_numbers:
         if not (1 <= n <= 60):
             raise HTTPException(status_code=400, detail="Preset numbers must be between 1 and 60")
     with Session(engine) as session:
         playlist = session.get(Playlist, playlist_id)
+        print(playlist, playlist_id)
         if not playlist:
             raise HTTPException(status_code=404, detail="Playlist not found")
         items = []
-        for number in preset_numbers:
-            item = PlaylistItem(playlist_id=playlist_id, preset_number=number)
+        for number in range(len(preset_numbers)):
+            max_position = session.exec(
+                select(func.max(PlaylistItem.position)).where(PlaylistItem.playlist_id == playlist_id)
+            ).one()
+            if max_position is None:
+                max_position = 0
+
+            item = PlaylistItem(playlist_id=playlist_id, preset_number=preset_numbers[number], note=notes[number], position=max_position + 1)
             session.add(item)
             items.append(item)
         playlist.last_updated = datetime.utcnow()
@@ -336,6 +359,86 @@ def add_items(playlist_id: int, preset_numbers: List[int]):
         session.commit()
         for item in items:
             session.refresh(item)
+        return items
+
+@app.post("/playlists/{playlist_id}/items/insert", response_model=List[PlaylistItem])
+def insert_item(playlist_id: int, preset_number: int = Body(...), position: int = Body(...)):
+    if not (1 <= preset_number <= 60):
+        raise HTTPException(status_code=400, detail="Preset number must be between 1 and 60")
+    with Session(engine) as session:
+        playlist = session.get(Playlist, playlist_id)
+        if not playlist:
+            raise HTTPException(status_code=404, detail="Playlist not found")
+        items = session.exec(
+            select(PlaylistItem).where(PlaylistItem.playlist_id == playlist_id).order_by(PlaylistItem.position)
+        ).all()
+
+        for item in items:
+            if item.position >= position:
+                item.position += 1
+                session.add(item)
+
+        new_item = PlaylistItem(playlist_id=playlist_id, preset_number=preset_number, position=position)
+        session.add(new_item)
+        playlist.last_updated = datetime.utcnow()
+        session.add(playlist)
+        session.commit()
+
+        items = session.exec(
+            select(PlaylistItem).where(PlaylistItem.playlist_id == playlist_id).order_by(PlaylistItem.position)
+        ).all()
+        return items
+
+@app.delete("/playlists/{playlist_id}/items/{item_id}", response_model=dict)
+def delete_item(playlist_id: int, item_id: int):
+    with Session(engine) as session:
+        item = session.get(PlaylistItem, item_id)
+        if not item or item.playlist_id != playlist_id:
+            raise HTTPException(status_code=404, detail="Playlist item not found")
+        position = item.position
+        session.delete(item)
+ 
+        items = session.exec(
+            select(PlaylistItem).where(PlaylistItem.playlist_id == playlist_id)
+        ).all()
+        for i in items:
+            if i.position > position:
+                i.position -= 1
+                session.add(i)
+        playlist = session.get(Playlist, playlist_id)
+        playlist.last_updated = datetime.utcnow()
+        session.add(playlist)
+        session.commit()
+        return {"ok": True}
+
+@app.patch("/playlists/{playlist_id}/items/{item_id}/move", response_model=List[PlaylistItem])
+def move_item(playlist_id: int, item_id: int, new_position: int = Body(...)):
+    with Session(engine) as session:
+        items = session.exec(
+            select(PlaylistItem).where(PlaylistItem.playlist_id == playlist_id).order_by(PlaylistItem.position)
+        ).all()
+        item = session.get(PlaylistItem, item_id)
+        if not item or item.playlist_id != playlist_id:
+            raise HTTPException(status_code=404, detail="Playlist item not found")
+        old_position = item.position
+        if new_position < 0 or new_position >= len(items):
+            raise HTTPException(status_code=400, detail="Invalid new position")
+
+        items.remove(item)
+
+        items.insert(new_position, item)
+
+        for idx, itm in enumerate(items):
+            itm.position = idx
+            session.add(itm)
+        playlist = session.get(Playlist, playlist_id)
+        playlist.last_updated = datetime.utcnow()
+        session.add(playlist)
+        session.commit()
+
+        items = session.exec(
+            select(PlaylistItem).where(PlaylistItem.playlist_id == playlist_id).order_by(PlaylistItem.position)
+        ).all()
         return items
 
 @app.patch("/playlists/{playlist_id}", response_model=PlaylistOut)
@@ -365,16 +468,17 @@ def update_playlist(
             size=size,
         )
 
-@app.get("/playlists/{playlist_id}/items/", response_model=List[int])
+@app.get("/playlists/{playlist_id}/items", response_model=List[PlaylistItem])
 def list_items(playlist_id: int):
     with Session(engine) as session:
         playlist = session.get(Playlist, playlist_id)
+        print(playlist)
         if not playlist:
             raise HTTPException(status_code=404, detail="Playlist not found")
         items = session.exec(
-            select(PlaylistItem).where(PlaylistItem.playlist_id == playlist_id)
+            select(PlaylistItem).where(PlaylistItem.playlist_id == playlist_id).order_by(PlaylistItem.position)
         ).all()
-        return [item.preset_number for item in items]
+        return items
 
 @app.delete("/playlists/{playlist_id}")
 def delete_playlist(playlist_id: int):

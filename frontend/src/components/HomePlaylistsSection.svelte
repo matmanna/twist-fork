@@ -123,7 +123,7 @@
     </Modal>
   </div>
   <div class="pt-2">
-    {#if playlists.length == 0}
+    {#if $playlists.length == 0}
       <div class="flex flex-row gap-2 items-center justify-center">
         <IconCircleQuestionMark />
         <p class="text-sm opacity-60 text-center">
@@ -145,8 +145,10 @@
                 document
                   .querySelector('#playlist-row')
                   .scrollBy({ left: -200, behavior: 'smooth' });
-              }}><IconChevronLeft /></button
+              }}
             >
+              <IconChevronLeft />
+            </button>
           </div>
 
           <div
@@ -163,8 +165,10 @@
               class="btn absolute right-[-10px] p-2.5 rounded-full preset-filled-tertiary-500"
               onclick={() => {
                 document.querySelector('#playlist-row').scrollBy({ left: 200, behavior: 'smooth' });
-              }}><IconChevronRight /></button
+              }}
             >
+              <IconChevronRight />
+            </button>
           </div>
         </div>
       </div>

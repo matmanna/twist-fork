@@ -20,6 +20,9 @@
     "vite": "^7.0.2"
   },
   "dependencies": {
+    "@dnd-kit-svelte/core": "^0.0.11",
+    "@dnd-kit-svelte/sortable": "^0.0.11",
+    "@dnd-kit-svelte/utilities": "^0.0.11",
     "@lucide/svelte": "^0.525.0",
     "@tailwindcss/vite": "^4.1.11",
     "clsx": "^2.1.1",
