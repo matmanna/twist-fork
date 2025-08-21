@@ -40,7 +40,7 @@
     memoryUsage,
     processorUsage,
     firmwareVersion,
-		activePlaylist,
+    activePlaylist,
     playlists,
     playlistsLoading,
     playlistItems,
@@ -139,7 +139,7 @@
           processorUsage.set(msg.processor_usage ?? processorUsage);
           firmwareVersion.set(msg.firmware_version ?? firmwareVersion);
           allPresets.set(msg.presets ?? allPresets);
-					activePlaylist.set(msg.active_playlist ?? null);
+          activePlaylist.set(msg.active_playlist ?? null);
           if ($allPresets && $allPresets.length > 0) {
             presetsLoading.set(false);
           }
@@ -229,7 +229,6 @@
 
   $effect(async () => {
     if ($routerLocation.split('/').includes('playlist')) {
-
       await refreshPlaylistItems();
     }
   });
@@ -277,6 +276,26 @@
         if ($routerLocation.split('/').includes('playlist')) {
           refreshPlaylistItems();
         }
+      } else if ($layoutEvents.type === 'playlist_deleted') {
+        toaster.success({
+          title: 'Playlist Deleted',
+          description: 'The playlist has been successfully deleted.'
+        });
+        fetchPlaylists();
+
+        if ($routerLocation.split('/').includes('playlist')) {
+          window.location.href = '/#/playlists';
+        }
+      } else if ($layoutEvents.type === 'playlist_started') {
+        toaster.success({
+          title: 'Playlist Started',
+          description: `The playlist has been started successfully.`
+        });
+      } else if ($layoutEvents.type === 'playlist_stopped') {
+        toaster.success({
+          title: 'Playlist Stopped',
+          description: `The playlist has been stopped successfully.`
+        });
       }
 
       layoutEvents.set(null);

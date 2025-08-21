@@ -586,8 +586,6 @@ def start_playlist(playlist_id: int):
 
 @app.post('/playlists/stop')
 def stop_playlist():
-    if device_store.status != "online" or not device_store.amp:
-        raise HTTPException(status_code=400, detail="Device not online")
     try:
         device_store.active_playlist_details = {
             "id": None,
@@ -599,7 +597,8 @@ def stop_playlist():
             "first_tap_time": None,
             "second_tap_time": None,
         }
-        device_store.amp.set_qa_slots([0, 0])
+        if not (device_store.status != "online" or not device_store.amp):
+            device_store.amp.set_qa_slots([0, 0])
     except Exception as e:
         return {"error": str(e)}
     return {"ok": True}

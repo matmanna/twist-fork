@@ -1,7 +1,11 @@
 <script>
   let { params } = $props();
 
+  // components
+  import { Modal } from '@skeletonlabs/skeleton-svelte';
+
   import PresetList from '../components/PresetList.svelte';
+
   // router
   import { link } from 'svelte-spa-router';
 
@@ -13,8 +17,9 @@
     playlistItems,
     allPresets,
     presetsLoading,
-		activePlaylist
+    activePlaylist
   } from '../stores/state.js';
+  import { layoutEvents } from '../stores/events.js';
 
   // local states
   let selectedPreset = $state('');
@@ -27,7 +32,12 @@
       : null
   );
 
-  import { layoutEvents } from '../stores/events.js';
+  // modal state
+  let openState = $state(false);
+
+  function modalClose() {
+    openState = false;
+  }
 
   function refetchPlaylistItems() {
     layoutEvents.set({
@@ -47,7 +57,7 @@
     })
       .then((d) => d.json())
       .then((data) => {
-        if (data.success) {
+        if (data.ok) {
           layoutEvents.set({
             type: 'playlist_started',
             playlistId: playlist.id
@@ -58,8 +68,31 @@
       });
   }
 
-	 function stopPlaylist() {
+  function deletePlaylist() {
+    modalClose();
+    if (!playlist) return;
 
+    fetch('/playlists/' + playlist.id, {
+      method: 'DELETE',
+      headers: {
+        'Content-Type': 'application/json',
+        Accept: 'application/json'
+      }
+    })
+      .then((d) => d.json())
+      .then((data) => {
+        if (data.ok) {
+          layoutEvents.set({
+            type: 'playlist_deleted',
+            playlistId: playlist.id
+          });
+        } else {
+          console.error('Failed to delete playlist:', data.error);
+        }
+      });
+  }
+
+  function stopPlaylist() {
     fetch('/playlists/stop', {
       method: 'POST',
       headers: {
@@ -69,7 +102,7 @@
     })
       .then((d) => d.json())
       .then((data) => {
-        if (data.success) {
+        if (data.ok) {
           layoutEvents.set({
             type: 'playlist_stopped',
             playlistId: playlist.id
@@ -79,7 +112,6 @@
         }
       });
   }
-
 
   function movePresetItem(itemId, newPosition) {
     if (!playlist) return;
@@ -140,21 +172,44 @@
         <span>Updated {formatDate(playlist.last_updated)}</span>
       </div>
       <div class="flex flex-row flex-wrap gap-2.5 items-center">
-				{#if $activePlaylist.id != playlist.id}
-        <button
-          type="button"
-          class="btn preset-filled-secondary-500"
-          disabled={$deviceStatus != 'online'}
-          onclick={startPlaylist}>Start</button
-        >
-				{:else}
-				<button
-					type="buton"
-					class="btn preset-filled-error-500"
-					onclick={stopPlaylist}>Stop</button>
-				{/if}
+        {#if $activePlaylist.id != playlist.id}
+          <button
+            type="button"
+            class="btn preset-filled-success-500"
+            disabled={$deviceStatus != 'online'}
+            onclick={startPlaylist}>Start</button
+          >
+        {:else}
+          <button type="buton" class="btn preset-filled-warning-500" onclick={stopPlaylist}
+            >Stop</button
+          >
+        {/if}
         <button type="button" class="btn preset-filled">Edit</button>
-        <button type="button" class="btn preset-filled-error-500">Delete</button>
+        <Modal
+          open={openState}
+          onOpenChange={(e) => (openState = e.open)}
+          triggerBase="btn preset-filled-error-500"
+          contentBase="card bg-surface-100-900 p-4 space-y-4 shadow-xl max-w-screen-sm"
+          backdropClasses="backdrop-blur-sm"
+        >
+          {#snippet trigger()}Delete{/snippet}
+          {#snippet content()}
+            <header class="flex justify-between">
+              <h4 class="h4">Confirm Deletion</h4>
+            </header>
+            <article>
+              <p class="opacity-60">
+                Are you sure you want to delete this playlist? This action cannot be undone.
+              </p>
+            </article>
+            <footer class="flex justify-end gap-4">
+              <button type="button" class="btn preset-tonal" onclick={modalClose}>Cancel</button>
+              <button type="button" class="btn preset-filled" onclick={deletePlaylist}
+                >Confirm</button
+              >
+            </footer>
+          {/snippet}
+        </Modal>
       </div>
     </div>
     <div class="flex flex-col gap-3 w-full max-w-5xl mx-auto">
