@@ -40,6 +40,7 @@
     memoryUsage,
     processorUsage,
     firmwareVersion,
+		activePlaylist,
     playlists,
     playlistsLoading,
     playlistItems,
@@ -138,6 +139,7 @@
           processorUsage.set(msg.processor_usage ?? processorUsage);
           firmwareVersion.set(msg.firmware_version ?? firmwareVersion);
           allPresets.set(msg.presets ?? allPresets);
+					activePlaylist.set(msg.active_playlist ?? null);
           if ($allPresets && $allPresets.length > 0) {
             presetsLoading.set(false);
           }
@@ -212,7 +214,7 @@
       const res = await fetch(
         `http://${location.host}/playlists/${$routerLocation.split('/')[2]}/items`
       );
-      console.log(res);
+
       if (!res.ok) throw new Error('Failed to fetch playlist items');
       playlistItems.set(await res.json());
     } catch (e) {
@@ -227,7 +229,7 @@
 
   $effect(async () => {
     if ($routerLocation.split('/').includes('playlist')) {
-      console.log($routerLocation);
+
       await refreshPlaylistItems();
     }
   });

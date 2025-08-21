@@ -1,4 +1,4 @@
-<script lang="ts">
+<script >
   import { Switch } from '@skeletonlabs/skeleton-svelte';
 
   let checked = $state(false);
@@ -8,7 +8,7 @@
     checked = mode === 'dark';
   });
 
-  const onCheckedChange = (event: { checked: boolean }) => {
+  const onCheckedChange = (event) => {
     const mode = event.checked ? 'dark' : 'light';
     document.documentElement.setAttribute('data-mode', mode);
     localStorage.setItem('mode', mode);

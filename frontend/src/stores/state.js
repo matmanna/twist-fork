@@ -9,6 +9,7 @@ export const auditionStatus = writable(undefined);
 export const memoryUsage = writable(undefined);
 export const processorUsage = writable(undefined);
 export const firmwareVersion = writable(undefined);
+export const activePlaylist = writable(undefined);
 export const playlists = writable([]);
 export const playlistItems = writable([]);
 export const playlistsLoading = writable(true);

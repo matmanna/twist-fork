@@ -59,6 +59,16 @@ class DeviceStore:
         self.details: dict = {}
         self.heartbeat_task = None
         self.amp: Optional[LtAmp] = None
+        self.active_playlist_details: dict = {
+            "id": None,
+            "position": 0,
+            "items": [],
+            "slots": [],
+            "current_slot":0,
+            "calibrated": False,
+            "first_tap_time": None,
+            "second_tap_time": None,
+        }
         self.product_name: str = ''
         self.current_preset: dict = {}
         self.audition_status: str = ''
@@ -79,6 +89,7 @@ class DeviceStore:
             "memory_usage": self.memory_usage,
             "processor_usage": self.processor_usage,
             "presets": self.presets,
+            "active_playlist": self.active_playlist_details,
         }
         for ws in self.connections.copy():
             try:
@@ -146,6 +157,51 @@ async def heartbeat_loop():
                 device_store.firmware_version = fw
                 device_store.memory_usage = memory
                 device_store.processor_usage = proc
+
+                if (device_store.active_playlist_details["id"] is not None):
+                    if device_store.active_playlist_details["first_tap_time"] != None and  ( datetime.now() - device_store.active_playlist_details["first_tap_time"]).seconds> 2:
+                        device_store.active_playlist_details["first_tap_time"] = None
+                        device_store.active_playlist_details["second_tap_time"] = None
+                    
+                    if not device_store.active_playlist_details["calibrated"]: 
+                        if (device_store.active_playlist_details["first_tap_time"] is None and  device_store.active_playlist_details["second_tap_time"] == None ):
+                            if (device_store.current_preset["index"] == device_store.active_playlist_details["slots"][0] or device_store.current_preset["index"] == device_store.active_playlist_details["slots"][1]):
+                                if device_store.current_preset["index"] == device_store.active_playlist_details["slots"][0]:
+                                    device_store.active_playlist_details["current_slot"] = 0
+                                else:
+                                    device_store.active_playlist_details["current_slot"] = 1
+                                device_store.active_playlist_details["first_tap_time"] = datetime.now()
+                                device_store.active_playlist_details["second_tap_time"] = None
+                        elif (device_store.active_playlist_details["first_tap_time"] is not None and device_store.active_playlist_details["second_tap_time"] is None):
+                            if (device_store.current_preset["index"] == device_store.active_playlist_details["slots"][0] or device_store.current_preset["index"] == device_store.active_playlist_details["slots"][1]):
+                                if device_store.current_preset["index"] ==device_store.active_playlist_details["slots"][0]:
+                                    device_store.active_playlist_details["current_slot"] = 0
+                                else:
+                                    device_store.active_playlist_details["current_slot"] = 1
+                                device_store.active_playlist_details["second_tap_time"] = datetime.now()
+                                if (device_store.active_playlist_details["second_tap_time"] - device_store.active_playlist_details["first_tap_time"]).total_seconds() < 2:
+                                    device_store.active_playlist_details["calibrated"] = True
+                                    device_store.active_playlist_details["first_tap_time"] = None
+                                    device_store.active_playlist_details["second_tap_time"] = None
+                                    device_store.amp.set_preset(device_store.active_playlist_details["items"][device_store.active_playlist_details["position"]])
+
+                                    if (device_store.active_playlist_details["current_slot"] == 0):
+                                        device_store.active_playlist_details["slots"] = [0, device_store.active_playlist_details["items"][device_store.active_playlist_details["position"]+1]]
+                                    else:
+                                         device_store.active_playlist_details["slots"] = [device_store.active_playlist_details["items"][device_store.active_playlist_details["position"]+1],  0]
+
+                                    device_store.amp.set_qa_slots(device_store.active_playlist_details["slots"])
+
+                                    await device_store.set_status("online")
+                                    await device_store.update_data()
+                    else:
+                        if (preset["index"] == device_store.active_playlist_details["items"][(device_store.active_playlist_details["position"]+1) % len(device_store.active_playlist_details["items"])]):
+                            device_store.active_playlist_details["position"] = (device_store.active_playlist_details["position"] + 1) % len(device_store.active_playlist_details["items"])
+                            device_store.active_playlist_details["current_slot"] = 1 - device_store.active_playlist_details["current_slot"]
+                            device_store.active_playlist_details["slots"] = [1, device_store.active_playlist_details["items"][(device_store.active_playlist_details["position"]+1) % len(device_store.active_playlist_details["items"])]] if device_store.active_playlist_details["current_slot"] == 0 else [device_store.active_playlist_details["items"][(device_store.active_playlist_details["position"]+1) % len(device_store.active_playlist_details["items"])], 1]
+                                
+                            device_store.amp.set_qa_slots(device_store.active_playlist_details["slots"])
+                  
                 await device_store.broadcast()
             await asyncio.sleep(0.8)
         except Exception as e:
@@ -164,6 +220,7 @@ async def handle_ws_action(msg):
             await device_store.set_status("connecting")
             try:
                 device_store.amp = LtAmp()
+
                 device_store.amp.connect()
                 await device_store.set_status("syncing")
                 device_store.amp.send_sync_begin()
@@ -173,7 +230,7 @@ async def handle_ws_action(msg):
                 if device_store.heartbeat_task is not None:
                     device_store.heartbeat_task.cancel()
                 device_store.heartbeat_task = asyncio.create_task(heartbeat_loop())
-
+                
                 await device_store.update_data()
             except Exception as e:
                 await device_store.set_status("offline", {"error": str(e)})
@@ -334,13 +391,12 @@ def get_playlist(playlist_id: int):
 
 @app.post("/playlists/{playlist_id}/items/", response_model=List[PlaylistItem])
 def add_items(playlist_id: int, preset_numbers: List[int], notes: List[str]):
-    print(playlist_id)
     for n in preset_numbers:
         if not (1 <= n <= 60):
             raise HTTPException(status_code=400, detail="Preset numbers must be between 1 and 60")
     with Session(engine) as session:
         playlist = session.get(Playlist, playlist_id)
-        print(playlist, playlist_id)
+
         if not playlist:
             raise HTTPException(status_code=404, detail="Playlist not found")
         items = []
@@ -349,7 +405,7 @@ def add_items(playlist_id: int, preset_numbers: List[int], notes: List[str]):
                 select(func.max(PlaylistItem.position)).where(PlaylistItem.playlist_id == playlist_id)
             ).one()
             if max_position is None:
-                max_position = 0
+                max_position = -1
 
             item = PlaylistItem(playlist_id=playlist_id, preset_number=preset_numbers[number], note=notes[number], position=max_position + 1)
             session.add(item)
@@ -411,8 +467,9 @@ def delete_item(playlist_id: int, item_id: int):
         session.commit()
         return {"ok": True}
 
-@app.patch("/playlists/{playlist_id}/items/{item_id}/move", response_model=List[PlaylistItem])
-def move_item(playlist_id: int, item_id: int, new_position: int = Body(...)):
+@app.post("/playlists/{playlist_id}/items/{item_id}/move", response_model=List[PlaylistItem])
+def move_item(playlist_id: int, item_id: int, new_position = Body(...)):
+    new_position = int(new_position['new_position']) 
     with Session(engine) as session:
         items = session.exec(
             select(PlaylistItem).where(PlaylistItem.playlist_id == playlist_id).order_by(PlaylistItem.position)
@@ -472,7 +529,7 @@ def update_playlist(
 def list_items(playlist_id: int):
     with Session(engine) as session:
         playlist = session.get(Playlist, playlist_id)
-        print(playlist)
+
         if not playlist:
             raise HTTPException(status_code=404, detail="Playlist not found")
         items = session.exec(
@@ -494,6 +551,58 @@ def delete_playlist(playlist_id: int):
         session.delete(playlist)
         session.commit()
         return {"ok": True}
+
+@app.post("/playlists/{playlist_id}/start")
+def start_playlist(playlist_id: int):
+    with Session(engine) as session:
+        playlist = session.get(Playlist, playlist_id)
+        if not playlist:
+            raise HTTPException(status_code=404, detail="Playlist not found")
+        items = session.exec(
+            select(PlaylistItem).where(PlaylistItem.playlist_id == playlist_id).order_by(PlaylistItem.position)
+        ).all()
+        if not items:
+            raise HTTPException(status_code=400, detail="No items in playlist")
+        if device_store.status != "online" or not device_store.amp:
+            raise HTTPException(status_code=400, detail="Device not online")
+
+        try:
+            device_store.amp.set_preset(items[0].preset_number)
+            asyncio.run(device_store.update_data())
+            device_store.active_playlist_details["id"] = playlist_id
+            device_store.active_playlist_details["position"] = 0
+            device_store.active_playlist_details["items"] = [item.preset_number for item in items]
+            device_store.active_playlist_details["first_tap_time"] = None
+            device_store.active_playlist_details["second_tap_time"] = None
+            import random
+            device_store.active_playlist_details["slots"] = [random.randint(1, 60), random.randint(1, 60)] if not device_store.active_playlist_details["calibrated"] else [1, device_store.active_playlist_details["items"][device_store.active_playlist_details["position"] + 1]] if device_store.active_playlist_details["current_slot"] == 0 else [device_store.active_playlist_details["items"][device_store.active_playlist_details["position"] + 1], 1]
+
+            device_store.active_playlist_details["current_slot"] = 0 if not device_store.active_playlist_details["calibrated"] else device_store.active_playlist_details["current_slot"]
+
+            device_store.amp.set_qa_slots(device_store.active_playlist_details["slots"])
+        except Exception as e:
+            return {"error": str(e)}
+        return {"ok": True}
+
+@app.post('/playlists/stop')
+def stop_playlist():
+    if device_store.status != "online" or not device_store.amp:
+        raise HTTPException(status_code=400, detail="Device not online")
+    try:
+        device_store.active_playlist_details = {
+            "id": None,
+            "position": 0,
+            "items": [],
+            "slots": [],
+            "current_slot":0,
+            "calibrated": False,
+            "first_tap_time": None,
+            "second_tap_time": None,
+        }
+        device_store.amp.set_qa_slots([0, 0])
+    except Exception as e:
+        return {"error": str(e)}
+    return {"ok": True}
 
 @app.get("/")
 def index():

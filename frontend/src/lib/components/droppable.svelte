@@ -1,14 +1,7 @@
-<script lang="ts">
-	import {useDroppable, type UseDroppableArguments} from '@dnd-kit-svelte/core';
-	import type {ClassValue} from 'clsx';
-	import type {Snippet} from 'svelte';
+<script >
+	import {useDroppable} from '@dnd-kit-svelte/core';
 
-	interface DroppableProps extends UseDroppableArguments {
-		children: Snippet;
-		class?: ClassValue;
-	}
-
-	let {children, class: className, ...rest}: DroppableProps = $props();
+	let {children, class: className, ...rest} = $props();
 
 	const droppable = useDroppable(rest);
 </script>

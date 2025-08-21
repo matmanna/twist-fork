@@ -1,17 +1,19 @@
 <script>
   let { params } = $props();
- 
-	import PresetList from '../components/PresetList.svelte'
+
+  import PresetList from '../components/PresetList.svelte';
   // router
   import { link } from 'svelte-spa-router';
 
   // device state
   import {
+    deviceStatus,
     playlists,
     playlistsLoading,
     playlistItems,
     allPresets,
-    presetsLoading
+    presetsLoading,
+		activePlaylist
   } from '../stores/state.js';
 
   // local states
@@ -33,6 +35,88 @@
     });
   }
 
+  function startPlaylist() {
+    if (!playlist) return;
+
+    fetch('/playlists/' + playlist.id + '/start', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Accept: 'application/json'
+      }
+    })
+      .then((d) => d.json())
+      .then((data) => {
+        if (data.success) {
+          layoutEvents.set({
+            type: 'playlist_started',
+            playlistId: playlist.id
+          });
+        } else {
+          console.error('Failed to start playlist:', data.error);
+        }
+      });
+  }
+
+	 function stopPlaylist() {
+
+    fetch('/playlists/stop', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Accept: 'application/json'
+      }
+    })
+      .then((d) => d.json())
+      .then((data) => {
+        if (data.success) {
+          layoutEvents.set({
+            type: 'playlist_stopped',
+            playlistId: playlist.id
+          });
+        } else {
+          console.error('Failed to stop playlist:', data.error);
+        }
+      });
+  }
+
+
+  function movePresetItem(itemId, newPosition) {
+    if (!playlist) return;
+    if (newPosition < 0 || newPosition >= $playlistItems.length) {
+      console.error('Invalid new position:', newPosition);
+      return;
+    }
+
+    fetch('/playlists/' + playlist.id + '/items/' + itemId + '/move', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Accept: 'application/json'
+      },
+
+      body: JSON.stringify({ new_position: newPosition })
+    })
+      .then((d) => d.json())
+      .then((items) => {
+        // set playlist items to items result
+        playlistItems.set(items);
+      });
+  }
+
+  function deletePresetItem(itemId) {
+    if (!playlist) return;
+
+    fetch('/playlists/' + playlist.id + '/items/' + itemId, {
+      method: 'DELETE',
+      headers: {
+        'Content-Type': 'application/json',
+        Accept: 'application/json'
+      }
+    }).then(() => {
+      refetchPlaylistItems();
+    });
+  }
   // utils
   import { formatDate } from '../lib/utils.js';
 
@@ -56,7 +140,19 @@
         <span>Updated {formatDate(playlist.last_updated)}</span>
       </div>
       <div class="flex flex-row flex-wrap gap-2.5 items-center">
-        <button type="button" class="btn preset-filled-secondary-500">Start</button>
+				{#if $activePlaylist.id != playlist.id}
+        <button
+          type="button"
+          class="btn preset-filled-secondary-500"
+          disabled={$deviceStatus != 'online'}
+          onclick={startPlaylist}>Start</button
+        >
+				{:else}
+				<button
+					type="buton"
+					class="btn preset-filled-error-500"
+					onclick={stopPlaylist}>Stop</button>
+				{/if}
         <button type="button" class="btn preset-filled">Edit</button>
         <button type="button" class="btn preset-filled-error-500">Delete</button>
       </div>
@@ -64,19 +160,7 @@
     <div class="flex flex-col gap-3 w-full max-w-5xl mx-auto">
       <p class="text-sm font-semibold text-base-content/80">Presets:</p>
       {#if $playlistItems && $playlistItems.length > 0}
-        {#each $playlistItems as item}
-          <div
-            class="card preset-filled-surface-50-900 border-[1px] border-surface-200-800 card-hover px-2 py-1 flex flex-row gap-2 items-center"
-          >
-            <div
-              class=" bg-tertiary-500/30 rounded-md w-8 h-8 text-center flex items-center justify-center"
-            >
-              <p class="text-lg text-base-content/70 font-semibold">{item.preset_number}</p>
-            </div>
-            <p class="text-lg text-base-content/70 font-semibold ">{$allPresets[item.preset_number - 1].name}</p>
-            <p class="text-md italic">{item.note ? '• ' + item.note : ''}</p>
-          </div>
-        {/each}
+        <PresetList {movePresetItem} {deletePresetItem} />
       {:else}
         <p class="text-sm text-base-content/70">No presets in this playlist.</p>
       {/if}
@@ -110,7 +194,6 @@
           type="button"
           class="btn preset-filled-tertiary-500 h-full rounded-r-full rounded-l-none"
           onclick={() => {
-            console.log(selectedPreset, newNote, playlist.id);
             fetch('/playlists/' + playlist.id + '/items/', {
               method: 'POST',
               headers: {
@@ -143,5 +226,4 @@
       </div>
     </div>
   {/if}
-	<PresetList />
 </div>
