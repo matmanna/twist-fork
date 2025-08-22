@@ -17,9 +17,13 @@
     playlistItems,
     allPresets,
     presetsLoading,
-    activePlaylist
+
+		activePlaylist
   } from '../stores/state.js';
   import { layoutEvents } from '../stores/events.js';
+
+	// icons
+	import IconArrowRight from '@lucide/svelte/icons/arrow-right';
 
   // local states
   let selectedPreset = $state('');
@@ -32,13 +36,19 @@
       : null
   );
 
-  // modal state
+  // modal/drawer states
   let openState = $state(false);
 
   function modalClose() {
     openState = false;
   }
+	  let drawerState = $state(true);
 
+  function drawerClose() {
+    drawerState = false;
+  }
+	
+	// layout event handlers
   function refetchPlaylistItems() {
     layoutEvents.set({
       type: 'refetch_playlist_items'
@@ -47,6 +57,7 @@
 
   function startPlaylist() {
     if (!playlist) return;
+	  drawerState = true;
 
     fetch('/playlists/' + playlist.id + '/start', {
       method: 'POST',
@@ -159,6 +170,33 @@
 </script>
 
 <div class="overflow-y-auto flex flex-col gap-6 px-4 lg:px-8 py-4 pb-10 h-[calc(100vh-201px)]">
+	<Modal
+  open={drawerState && $deviceStatus == "online" && $activePlaylist && $activePlaylist.id == playlist.id && !$activePlaylist.calibrated}
+  onOpenChange={(e) => (drawerState = e.open)}
+  triggerBase="btn preset-tonal"
+  contentBase="bg-surface-100-900 p-4 space-y-4 shadow-xl h-[300px] w-screen self-end"
+  positionerJustify=""
+  positionerAlign="items-end justify-end content-end"
+  positionerPadding=""
+  transitionsPositionerIn={{ x: -480, duration: 200 }}
+  transitionsPositionerOut={{ x: -480, duration: 200 }}
+>
+
+  {#snippet content()}
+    <header class="flex justify-between">
+      <h2 class="h2">Footswitch Calibration</h2>
+    </header>
+    <article>
+      <p class="opacity-60">
+      If you would like to control this playlist with a footswitch, please double-press the footswitch now to calibrate it. If you do not have a footswitch, you can close this notice.
+      </p>
+    </article>
+    <footer>
+				<button type="button" class="btn preset-filled" onclick={drawerClose}>Use web UI instead</button>
+      <button type="button" class="btn preset-filled" disabled={!$activePlaylist.calibrated} onclick={drawerClose}>Done    <IconArrowRight size={18} /></button>
+    </footer>
+  {/snippet}
+</Modal>
   {#if playlist != null}
     <div class="flex flex-col gap-4 w-full max-w-5xl mx-auto">
       <p class="text-sm text-base-content/70">

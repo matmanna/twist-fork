@@ -88,13 +88,13 @@ class DeviceStore:
             "firmware_version": self.firmware_version,
             "memory_usage": self.memory_usage,
             "processor_usage": self.processor_usage,
-            "presets": self.presets,
+            "presets":  self.presets,
             "active_playlist": self.active_playlist_details,
         }
         for ws in self.connections.copy():
             try:
-                await ws.send_json(message)
-            except Exception:
+                await ws.send_json(json.loads(json.dumps(message, indent=4, sort_keys=True, default=str)))
+            except Exception as e:
                 self.connections.remove(ws)
 
     async def set_status(self, status, details=None):
@@ -185,10 +185,8 @@ async def heartbeat_loop():
                                     device_store.active_playlist_details["second_tap_time"] = None
                                     device_store.amp.set_preset(device_store.active_playlist_details["items"][device_store.active_playlist_details["position"]])
 
-                                    if (device_store.active_playlist_details["current_slot"] == 0):
-                                        device_store.active_playlist_details["slots"] = [0, device_store.active_playlist_details["items"][device_store.active_playlist_details["position"]+1]]
-                                    else:
-                                         device_store.active_playlist_details["slots"] = [device_store.active_playlist_details["items"][device_store.active_playlist_details["position"]+1],  0]
+                                    device_store.active_playlist_details["slots"] = [device_store.active_playlist_details["items"][(device_store.active_playlist_details["position"]+2) % len(device_store.active_playlist_details["items"])], device_store.active_playlist_details["items"][(device_store.active_playlist_details["position"]+1) % len(device_store.active_playlist_details["items"])]] if device_store.active_playlist_details["current_slot"] == 0 else [device_store.active_playlist_details["items"][(device_store.active_playlist_details["position"]+1) % len(device_store.active_playlist_details["items"])], device_store.active_playlist_details["items"][(device_store.active_playlist_details["position"]+2) % len(device_store.active_playlist_details["items"])]]
+
 
                                     device_store.amp.set_qa_slots(device_store.active_playlist_details["slots"])
 
@@ -198,7 +196,7 @@ async def heartbeat_loop():
                         if (preset["index"] == device_store.active_playlist_details["items"][(device_store.active_playlist_details["position"]+1) % len(device_store.active_playlist_details["items"])]):
                             device_store.active_playlist_details["position"] = (device_store.active_playlist_details["position"] + 1) % len(device_store.active_playlist_details["items"])
                             device_store.active_playlist_details["current_slot"] = 1 - device_store.active_playlist_details["current_slot"]
-                            device_store.active_playlist_details["slots"] = [1, device_store.active_playlist_details["items"][(device_store.active_playlist_details["position"]+1) % len(device_store.active_playlist_details["items"])]] if device_store.active_playlist_details["current_slot"] == 0 else [device_store.active_playlist_details["items"][(device_store.active_playlist_details["position"]+1) % len(device_store.active_playlist_details["items"])], 1]
+                            device_store.active_playlist_details["slots"] = [device_store.active_playlist_details["items"][(device_store.active_playlist_details["position"]+2) % len(device_store.active_playlist_details["items"])], device_store.active_playlist_details["items"][(device_store.active_playlist_details["position"]+1) % len(device_store.active_playlist_details["items"])]] if device_store.active_playlist_details["current_slot"] == 0 else [device_store.active_playlist_details["items"][(device_store.active_playlist_details["position"]+1) % len(device_store.active_playlist_details["items"])], device_store.active_playlist_details["items"][(device_store.active_playlist_details["position"]+2) % len(device_store.active_playlist_details["items"])]]
                                 
                             device_store.amp.set_qa_slots(device_store.active_playlist_details["slots"])
                   
@@ -575,7 +573,8 @@ def start_playlist(playlist_id: int):
             device_store.active_playlist_details["first_tap_time"] = None
             device_store.active_playlist_details["second_tap_time"] = None
             import random
-            device_store.active_playlist_details["slots"] = [random.randint(1, 60), random.randint(1, 60)] if not device_store.active_playlist_details["calibrated"] else [1, device_store.active_playlist_details["items"][device_store.active_playlist_details["position"] + 1]] if device_store.active_playlist_details["current_slot"] == 0 else [device_store.active_playlist_details["items"][device_store.active_playlist_details["position"] + 1], 1]
+            device_store.active_playlist_details["slots"] = [random.randint(1, 60), random.randint(1, 60)] if not device_store.active_playlist_details["calibrated"] else [device_store.active_playlist_details["items"][(device_store.active_playlist_details["position"]+2) % len(device_store.active_playlist_details["items"])], device_store.active_playlist_details["items"][(device_store.active_playlist_details["position"]+1) % len(device_store.active_playlist_details["items"])]] if device_store.active_playlist_details["current_slot"] == 0 else [device_store.active_playlist_details["items"][(device_store.active_playlist_details["position"]+1) % len(device_store.active_playlist_details["items"])], device_store.active_playlist_details["items"][(device_store.active_playlist_details["position"]+2) % len(device_store.active_playlist_details["items"])]]
+
 
             device_store.active_playlist_details["current_slot"] = 0 if not device_store.active_playlist_details["calibrated"] else device_store.active_playlist_details["current_slot"]
 
