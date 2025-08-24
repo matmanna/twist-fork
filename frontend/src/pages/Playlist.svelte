@@ -60,8 +60,8 @@
 
 	// edit mode
 	let editMode = $state(false);
-	let editedName = $state(playlist ? playlist.name : '');
-	let editedDescription = $state(playlist ? (playlist.description != '~' ? playlist.description : '') : '');
+	let editedName = $state('');
+	let editedDescription = $state( '');
 
   // layout event handlers
   function refetchPlaylistItems() {

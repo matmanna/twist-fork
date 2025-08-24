@@ -170,6 +170,7 @@
       const res = await fetch(`http://${location.host}/playlists/`);
       if (!res.ok) throw new Error('Failed to fetch playlists');
       playlists.set(await res.json());
+			playlistsLoading.set(false);
     } catch (e) {
       toaster.error({
         title: 'Error fetching playlists',
@@ -264,7 +265,7 @@
           });
         }
       } else if ($layoutEvents.type === 'create_playlist') {
-        if ($layoutEvents.name && $layoutEvents.description) {
+        if ($layoutEvents.name ) {
           createPlaylist($layoutEvents.name, $layoutEvents.description);
         } else {
           toaster.error({
