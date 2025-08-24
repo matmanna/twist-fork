@@ -496,6 +496,59 @@ def move_item(playlist_id: int, item_id: int, new_position = Body(...)):
         ).all()
         return items
 
+@app.patch("/playlists/{playlist_id}/items/{item_id}", response_model=List[PlaylistItem])
+def update_item(playlist_id: int, item_id: int, preset_number = Body(...), note = Body(...)):
+    new_preset = int(preset_number)
+    new_note = note
+    if not (1 <= new_preset <= 60):
+        raise HTTPException(status_code=400, detail="Preset number must be between 1 and 60")
+    with Session(engine) as session:
+        item = session.get(PlaylistItem, item_id)
+        if not item or item.playlist_id != playlist_id:
+            raise HTTPException(status_code=404, detail="Playlist item not found")
+        item.preset_number = new_preset
+        item.note = new_note
+        session.add(item)
+        playlist = session.get(Playlist, playlist_id)
+        playlist.last_updated = datetime.utcnow()
+        session.add(playlist)
+        session.commit()
+
+        items = session.exec(
+            select(PlaylistItem).where(PlaylistItem.playlist_id == playlist_id).order_by(PlaylistItem.position)
+        ).all()
+        return items
+
+@app.post("/playlists/{playlist_id}/items/{item_id}/play", response_model=dict)
+def play_item(playlist_id: int, item_id: int):
+    if device_store.status != "online" or not device_store.amp:
+        raise HTTPException(status_code=400, detail="Device not online")
+    with Session(engine) as session:
+        item = session.get(PlaylistItem, item_id)
+        if not item or item.playlist_id != playlist_id:
+            raise HTTPException(status_code=404, detail="Playlist item not found")
+        items = session.exec(
+            select(PlaylistItem).where(PlaylistItem.playlist_id == playlist_id).order_by(PlaylistItem.position)
+        ).all()
+        try:
+            match_index = next(i for i, it in enumerate(items) if it.id == item_id)
+            device_store.amp.set_preset(item.preset_number)
+            asyncio.run(device_store.update_data())
+            device_store.active_playlist_details["id"] = playlist_id
+            device_store.active_playlist_details["position"] = match_index
+            device_store.active_playlist_details["items"] = [it.preset_number for it in items]
+            device_store.active_playlist_details["first_tap_time"] = None
+            device_store.active_playlist_details["second_tap_time"] = None
+            import random
+            device_store.active_playlist_details["slots"] = [random.randint(1, 60), random.randint(1, 60)] if not device_store.active_playlist_details["calibrated"] else [device_store.active_playlist_details["items"][(device_store.active_playlist_details["position"]+2) % len(device_store.active_playlist_details["items"])], device_store.active_playlist_details["items"][(device_store.active_playlist_details["position"]+1) % len(device_store.active_playlist_details["items"])]] if device_store.active_playlist_details["current_slot"] == 0 else [device_store.active_playlist_details["items"][(device_store.active_playlist_details["position"]+1) % len(device_store.active_playlist_details["items"])], device_store.active_playlist_details["items"][(device_store.active_playlist_details["position"]+2) % len(device_store.active_playlist_details["items"])]]
+            device_store.active_playlist_details["current_slot"] = 0 if not device_store.active_playlist_details["calibrated"] else device_store.active_playlist_details["current_slot"]
+            device_store.amp.set_qa_slots(device_store.active_playlist_details["slots"])
+        except StopIteration:
+            raise HTTPException(status_code=404, detail="Playlist item not found in playlist")
+        except Exception as e:
+            raise HTTPException(status_code=400, detail=str(e))
+        return {"ok": True}
+
 @app.patch("/playlists/{playlist_id}", response_model=PlaylistOut)
 def update_playlist(
     playlist_id: int,

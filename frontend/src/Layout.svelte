@@ -296,7 +296,13 @@
           title: 'Playlist Stopped',
           description: `The playlist has been stopped successfully.`
         });
-      }
+      } else if ($layoutEvents.type === 'playlist_edited') {
+				toaster.success({
+					title: 'Playlist Updated',
+					description: `The playlist has been updated successfully.`
+				});
+				fetchPlaylists();
+			}
 
       layoutEvents.set(null);
     }

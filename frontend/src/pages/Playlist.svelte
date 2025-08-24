@@ -3,7 +3,7 @@
 
   // components
   import { Modal } from '@skeletonlabs/skeleton-svelte';
-
+  import { Combobox } from '@skeletonlabs/skeleton-svelte';
   import PresetList from '../components/PresetList.svelte';
 
   // router
@@ -17,16 +17,14 @@
     playlistItems,
     allPresets,
     presetsLoading,
-
-		activePlaylist
+    activePlaylist
   } from '../stores/state.js';
   import { layoutEvents } from '../stores/events.js';
 
-	// icons
-	import IconArrowRight from '@lucide/svelte/icons/arrow-right';
+  // icons
+  import IconArrowRight from '@lucide/svelte/icons/arrow-right';
 
   // local states
-  let selectedPreset = $state('');
   let newNote = $state('');
 
   // playlist info
@@ -42,13 +40,30 @@
   function modalClose() {
     openState = false;
   }
-	  let drawerState = $state(true);
+  let drawerState = $state(true);
 
   function drawerClose() {
     drawerState = false;
   }
-	
-	// layout event handlers
+
+  const comboboxData = $derived(
+    $allPresets && $allPresets.length > 0
+      ? $allPresets.map((preset, index) => ({
+          label: `${preset.index} - ${preset.name.trim()}`,
+          value: preset.index,
+          index: index
+        }))
+      : []
+  );
+
+  let selectedPreset = $state([]);
+
+	// edit mode
+	let editMode = $state(false);
+	let editedName = $state(playlist ? playlist.name : '');
+	let editedDescription = $state(playlist ? (playlist.description != '~' ? playlist.description : '') : '');
+
+  // layout event handlers
   function refetchPlaylistItems() {
     layoutEvents.set({
       type: 'refetch_playlist_items'
@@ -57,7 +72,7 @@
 
   function startPlaylist() {
     if (!playlist) return;
-	  drawerState = true;
+    drawerState = true;
 
     fetch('/playlists/' + playlist.id + '/start', {
       method: 'POST',
@@ -142,7 +157,6 @@
     })
       .then((d) => d.json())
       .then((items) => {
-        // set playlist items to items result
         playlistItems.set(items);
       });
   }
@@ -160,6 +174,37 @@
       refetchPlaylistItems();
     });
   }
+
+	function editPresetItem(itemId, newPreset, newNote) {
+		if (!playlist) return;
+
+		fetch('/playlists/' + playlist.id + '/items/' + itemId, {
+			method: 'PATCH',
+			headers: {
+				'Content-Type': 'application/json',
+				Accept: 'application/json'
+			},
+			body: JSON.stringify({
+				preset_number: newPreset,
+				note: newNote
+			})
+		}).then(() => {
+			refetchPlaylistItems();
+		});
+	}
+
+	function playPresetItem(itemId) {
+		if (!playlist) return;
+
+		fetch('/playlists/' + playlist.id + '/items/' + itemId + '/play', {
+			method: 'POST',
+			headers: {
+				'Content-Type': 'application/json',
+				Accept: 'application/json'
+			}
+		})
+	}
+
   // utils
   import { formatDate } from '../lib/utils.js';
 
@@ -170,38 +215,60 @@
 </script>
 
 <div class="overflow-y-auto flex flex-col gap-6 px-4 lg:px-8 py-4 pb-10 h-[calc(100vh-201px)]">
-	<Modal
-  open={drawerState && $deviceStatus == "online" && $activePlaylist && $activePlaylist.id == playlist.id && !$activePlaylist.calibrated}
-  onOpenChange={(e) => (drawerState = e.open)}
-  triggerBase="btn preset-tonal"
-  contentBase="bg-surface-100-900 p-4 space-y-4 shadow-xl h-[300px] w-screen self-end"
-  positionerJustify=""
-  positionerAlign="items-end justify-end content-end"
-  positionerPadding=""
-  transitionsPositionerIn={{ x: -480, duration: 200 }}
-  transitionsPositionerOut={{ x: -480, duration: 200 }}
->
-
-  {#snippet content()}
-    <header class="flex justify-between">
-      <h2 class="h2">Footswitch Calibration</h2>
-    </header>
-    <article>
-      <p class="opacity-60">
-      If you would like to control this playlist with a footswitch, please double-press the footswitch now to calibrate it. If you do not have a footswitch, you can close this notice.
-      </p>
-    </article>
-    <footer>
-				<button type="button" class="btn preset-filled" onclick={drawerClose}>Use web UI instead</button>
-      <button type="button" class="btn preset-filled" disabled={!$activePlaylist.calibrated} onclick={drawerClose}>Done    <IconArrowRight size={18} /></button>
-    </footer>
-  {/snippet}
-</Modal>
+  <Modal
+    open={drawerState &&
+      $deviceStatus == 'online' &&
+      $activePlaylist &&
+      $activePlaylist.id == playlist.id &&
+      !$activePlaylist.calibrated}
+    onOpenChange={(e) => (drawerState = e.open)}
+    triggerBase="btn preset-tonal"
+    contentBase="bg-surface-100-900 p-4 space-y-4 shadow-xl h-[300px] w-screen self-end"
+    positionerJustify=""
+    positionerAlign="items-end justify-end content-end"
+    positionerPadding=""
+    transitionsPositionerIn={{ x: -480, duration: 200 }}
+    transitionsPositionerOut={{ x: -480, duration: 200 }}
+  >
+    {#snippet content()}
+      <header class="flex justify-between">
+        <h2 class="h2">Footswitch Calibration</h2>
+      </header>
+      <article>
+        <p class="opacity-60">
+          If you would like to control this playlist with a footswitch, please double-press the
+          footswitch now to calibrate it. If you do not have a footswitch, you can close this
+          notice.
+        </p>
+      </article>
+      <footer>
+        <button type="button" class="btn preset-filled" onclick={drawerClose}
+          >Use web UI instead</button
+        >
+        <button
+          type="button"
+          class="btn preset-filled"
+          disabled={!$activePlaylist.calibrated}
+          onclick={drawerClose}>Done <IconArrowRight size={18} /></button
+        >
+      </footer>
+    {/snippet}
+  </Modal>
   {#if playlist != null}
     <div class="flex flex-col gap-4 w-full max-w-5xl mx-auto">
+			{#if editMode}
+				<label class="label">
+  <span class="label-text">Name</span>
+  <input class="input" type="text" bind:value={editedName} placeholder="Playlist Name" />
+</label>
+				<label class="label">
+  <span class="label-text">Description</span>  <textarea class="textarea" rows="4" bind:value={editedDescription} placeholder="What this playlist is for (a song, setlist, etc.)"></textarea>
+</label>
+		{:else}
       <p class="text-sm text-base-content/70">
         {playlist.description != '~' ? playlist.description : 'No description'}
       </p>
+		{/if}
       <div class="flex flex-row flex-wrap items-center gap-1 text-sm text-base-content/70">
         <span class="flex items-center gap-1">
           <IconSpeaker class="w-4 h-4" />
@@ -222,7 +289,34 @@
             >Stop</button
           >
         {/if}
-        <button type="button" class="btn preset-filled">Edit</button>
+        <button type="button" class="btn preset-filled" onclick={() => {
+					if (editMode) {
+
+						fetch('/playlists/' + playlist.id, {
+							method: 'PATCH',
+							headers: {
+								'Content-Type': 'application/json',
+								Accept: 'application/json'
+							},
+							body: JSON.stringify({
+								name: editedName,
+								description: editedDescription != '' ? editedDescription : '~'
+							})
+						}).then(() => {
+							layoutEvents.set({
+								type: 'playlist_edited',
+								playlistId: playlist.id
+							});
+							editMode = false;
+						});
+					} else {
+						editMode = true;
+						editedName = playlist.name;
+						editedDescription = playlist.description != '~' ? playlist.description : '';
+					}
+				}}>
+			{#if editMode} Save {:else} Edit {/if}
+				</button>
         <Modal
           open={openState}
           onOpenChange={(e) => (openState = e.open)}
@@ -253,7 +347,7 @@
     <div class="flex flex-col gap-3 w-full max-w-5xl mx-auto">
       <p class="text-sm font-semibold text-base-content/80">Presets:</p>
       {#if $playlistItems && $playlistItems.length > 0}
-        <PresetList {movePresetItem} {deletePresetItem} />
+        <PresetList {movePresetItem} {deletePresetItem} {editPresetItem} {playPresetItem} />
       {:else}
         <p class="text-sm text-base-content/70">No presets in this playlist.</p>
       {/if}
@@ -264,16 +358,35 @@
           <IconListPlus />
         </div>
         <label class="preset w-full h-full">
-          <select
-            class="select h-full px-2 rounded-none"
-            disabled={$presetsLoading}
-            bind:value={selectedPreset}
+          <Combobox
+            data={comboboxData}
+            value={selectedPreset}
+            onValueChange={(e) => (selectedPreset = e.value)}
+            openOnClick
+						classes="h-full"
+						inputGroupBase="h-[48px] rounded-none px-2 flex-row flex"
+						inputGroupInput="h-[48px] w-full"
+            loopFocus
+            contentBase="max-h-[300px] overflow-y-auto"
+            openOnChange
+
+            placeholder="Select..."
           >
-            <option value="" disabled selected>Select Preset</option>
-            {#each $allPresets as preset}
-              <option value={preset.index}>{preset.index} - {preset.name}</option>
-            {/each}
-          </select>
+            {#snippet item(item)}
+              <div class="flex w-full flex-row space-x-2">
+                <div
+                  class=" bg-tertiary-500/30 rounded-md w-8 h-8 text-center flex items-center justify-center"
+                >
+                  <p class="text-lg text-base-content/70 font-semibold">
+                    {(item.index + 1).toString().padStart(2, "0")}
+                  </p>
+                </div>
+                <p class="text-lg text-base-content/70 font-semibold">
+                  {(item.label).split(' - ')[1] ?? '?????????'}
+                </p>
+              </div>
+            {/snippet}
+          </Combobox>
         </label>
         <label class="note w-full h-full">
           <input
@@ -293,7 +406,7 @@
                 'Content-Type': 'application/json'
               },
               body: JSON.stringify({
-                preset_numbers: [Number(selectedPreset)],
+                preset_numbers: [Number(selectedPreset[0])],
                 notes: [newNote]
               })
             }).then(() => {
