@@ -1,16 +1,29 @@
 # The Twist
 
-> [!IMPORTANT]
-> This repository is still in the prototype stage with many of The Twist's components, resources, and documentation being WIPs. **Nevertheless, leaving a star helps the project a lot andkeeps you in the loop with progress!**
-
 🌀 The Bender Twist is a [free](https://en.wikipedia.org/wiki/Free_software), portable platform that augments the functional capabilities of LT-series amps made by a certain guitar brand that rhymes with "bender" and names products after horses.
+
+> [!IMPORTANT]
+> This platform is still a prototype with many of its components being WIP. **Nevertheless, leaving a star helps the project a lot and keeps you in the loop with progress! ⭐**
 
 ## 📌 This Repository
 
 This repository contains the key functionality behind the twist, which is designed to be combined with other add-ons that may be developed in the future (think rechargeable battery support, etc.)
 
-The two main parts within this codebase are the **backend server**--, controlling access point, API, and Amp connectivity functionalities-- and the **frontend control panel**, which provides a user-friendly and easily accessible interface for using and interacting with your Twist device. An overview of both of these parts can be found in the respository's [Wiki Documentation](/wiki):
+The two main parts within this codebase are the **backend server**--, controlling access point, API, and Amp connectivity functionalities-- and the **frontend control panel**, which provides a user-friendly and easily accessible interface for using and interacting with your Twist device. An overview of both of these parts can be found in the respository's [Wiki Documentation](/wiki).
 
+**Platform Features**
+- 🌀 Bender Twist LT 0
+  - 📡 Wireless access point connectivity
+  - 🌐 Web-based control panel & API
+    - 📊 Data stored per-twist
+  - 📱 Mobile control panel app (soon!)
+    - 📊 Data stored per-app
+  - 🛰️ Router-baee Wi-Fi support
+    - 📻 Multiple-twist support (router)
+  - 🖲️ Footswitch playlists
+
+- Bender Twist LT pico (soon!)
+ 
 ## 🖼️ Setup Overview 
 
 <picture>
