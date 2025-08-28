@@ -1,0 +1,20 @@
+{
+  "name": "The Twist Monorepo",
+  "image": "mcr.microsoft/devcontainers/universal:2",
+  "features": {
+    "ghcr.io/devcontainers/features/python:1": { "version": "3.11" },
+    "ghcr.io/devcontainers/features/node:1": { "version": "20" },
+    "ghcr.io/devcontainers/features/bazel": {}
+  },
+  "postCreateCommand": "npm install -g prettier eslint && pip install black flake8 pytest",
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "ms-python.python",
+        "dbaeumer.vscode-eslint",
+        "esbenp.prettier-vscode",
+        "bazelbuild.vscode-bazel"
+      ]
+    }
+  }
+}
