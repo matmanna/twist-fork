@@ -1,4 +1,4 @@
-<script >
+<script>
   import { Switch } from '@skeletonlabs/skeleton-svelte';
 
   let checked = $state(false);

@@ -52,7 +52,7 @@
   <header class="mb-2">
     <h2 class="flex flex-row gap-2 items-center text-2xl font-bold">
       <IconWrench />
-      Device Status
+      Device Control
     </h2>
   </header>
   <div class="flex flex-col gap-4">

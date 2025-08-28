@@ -40,11 +40,7 @@
     </div>
   </div>
   <div class="flex flex-row justify-end">
-    <a
-
-      class="btn preset-filled w-fit"
-      href={`#/playlist/${playlist.id}`}
-    >
+    <a class="btn preset-filled w-fit" href={`#/playlist/${playlist.id}`}>
       <span>Open</span>
       <IconArrowRight size={18} />
     </a>

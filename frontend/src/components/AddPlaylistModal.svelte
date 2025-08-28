@@ -17,8 +17,8 @@
     });
   }
 
-	// props
-	let {triggerBase = "btn preset-filled-tertiary-500 items-center", children } = $props();
+  // props
+  let { triggerBase = 'btn preset-filled-tertiary-500 items-center', children } = $props();
 
   // modal state
   let newName = $state('');
@@ -39,13 +39,13 @@
 <Modal
   open={$showPlaylistModal}
   onOpenChange={(e) => ($showPlaylistModal = e.open)}
-  triggerBase={triggerBase}
-	contentBase="card bg-surface-100-900 p-4 space-y-4 shadow-xl max-w-screen-lg"
+  {triggerBase}
+  contentBase="card bg-surface-100-900 p-4 space-y-4 shadow-xl max-w-screen-lg"
   backdropClasses="backdrop-blur-sm"
 >
   {#snippet trigger()}
-		{@render children()}
-	{/snippet}
+    {@render children()}
+  {/snippet}
   {#snippet content()}
     <header class="flex flex-row gap-2 items-center relative">
       <IconListPlus />

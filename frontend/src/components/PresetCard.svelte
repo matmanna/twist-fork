@@ -17,7 +17,7 @@
   import IconPlay from '@lucide/svelte/icons/play';
 
   // props
-  let { item, deleteMe, editMe, playMe } = $props();
+  let { item, deleteMe, editMe, playMe, selected } = $props();
 
   // edit mode stuff
   let editMode = $state(false);
@@ -59,7 +59,7 @@
 <div class="relative select-none w-full" bind:this={node.current} {style}>
   <div
     class={[
-      ...'flex flex-row items-center w-full  z-10 overflow-x-auto'.split(' '),
+      ...'flex flex-row items-center w-full  z-10 overflow-x-auto py-1 pr-1'.split(' '),
       { invisible: isDragging.current }
     ]}
   >
@@ -68,7 +68,9 @@
     </p>
 
     <div
-      class="card preset-filled-surface-50-900 border-[1px] border-surface-200-800 card-hover px-2 py-1 flex flex-row gap-2 items-center gap-2 w-full bg-surface-50-900"
+      class={`card preset-filled-surface-50-900 border-[1px] border-surface-200-800 card-hover px-2 py-1 flex flex-row gap-2 items-center gap-2 w-full bg-surface-50-900 ${
+        selected ? 'ring-2 ring-success/300' : ''
+      }`}
     >
       <div class="flex flex-row items-center gap-2 w-full overflow-x-auto">
         <div
@@ -137,44 +139,47 @@
         disabled={$deviceStatus != 'online'}
         onclick={playMe}><IconPlay size={18} /></button
       >
+      {#if editMe}
+        <button
+          type="button"
+          class="btn-icon preset-filled cursor-pointer z-10"
+          title="Edit"
+          aria-label="Delete"
+          onclick={() => {
+            if (!editMode) {
+              selectedPreset = [item.preset_number];
+              selectedNote = item.note;
+              editMode = true;
+            } else {
+              editMe(selectedPreset[0], selectedNote);
+              editMode = false;
+            }
+          }}
+        >
+          {#if editMode}
+            <IconCheck size={18} />
+          {:else}
+            <IconPencil size={18} />
+          {/if}
+        </button>
+      {/if}
 
-      <button
-        type="button"
-        class="btn-icon preset-filled cursor-pointer z-10"
-        title="Edit"
-        aria-label="Delete"
-        onclick={() => {
-          if (!editMode) {
-            selectedPreset = [item.preset_number];
-            selectedNote = item.note;
-            editMode = true;
-          } else {
-            editMe(selectedPreset[0], selectedNote);
-            editMode = false;
-          }
-        }}
-      >
-        {#if editMode}
-          <IconCheck size={18} />
-        {:else}
-          <IconPencil size={18} />
-        {/if}
-      </button>
-
-      <button
-        type="button"
-        class="btn-icon preset-filled-error-500 cursor-pointer z-10"
-        title="Delete"
-        aria-label="Delete"
-        onclick={deleteMe}><IconTrash size={18} /></button
-      >
-      <IconGripVertical
+      {#if deleteMe}
+        <button
+          type="button"
+          class="btn-icon preset-filled-error-500 cursor-pointer z-10"
+          title="Delete"
+          aria-label="Delete"
+          onclick={deleteMe}><IconTrash size={18} /></button
+        >
+      {/if}
+			{#if deleteMe} <IconGripVertical
         size={18}
         class="text-gray-500 cursor-pointer"
         bind:this={activatorNode.current}
         {...attributes.current}
         {...listeners.current}
-      ></IconGripVertical>
+      ></IconGripVertical>{/if}
     </div>
   </div>
 

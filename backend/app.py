@@ -66,6 +66,7 @@ class DeviceStore:
             "slots": [],
             "current_slot":0,
             "calibrated": False,
+            "paused": False,
             "first_tap_time": None,
             "second_tap_time": None,
         }
@@ -646,11 +647,72 @@ def stop_playlist():
             "slots": [],
             "current_slot":0,
             "calibrated": False,
+            "paused": False,
             "first_tap_time": None,
             "second_tap_time": None,
         }
         if not (device_store.status != "online" or not device_store.amp):
             device_store.amp.set_qa_slots([0, 0])
+    except Exception as e:
+        return {"error": str(e)}
+    return {"ok": True}
+
+@app.post('/playlists/pause')
+def pause_playlist():
+    try:
+        if device_store.status != "online" or not device_store.amp:
+            raise HTTPException(status_code=400, detail="Device not online")
+        device_store.active_playlist_details["first_tap_time"] = None
+        device_store.active_playlist_details["second_tap_time"] = None
+        device_store.active_playlist_details["paused"] = True
+    except Exception as e:
+        return {"error": str(e)}
+    return {"ok": True}
+
+@app.post('/playlists/resume')
+def resume_playlist():
+    try:
+        if device_store.status != "online" or not device_store.amp:
+            raise HTTPException(status_code=400, detail="Device not online")
+        device_store.active_playlist_details["paused"] = False
+        device_store.amp.set_preset(device_store.active_playlist_details["items"][device_store.active_playlist_details["position"]])
+        device_store.amp.set_qa_slots(device_store.active_playlist_details["slots"])
+    except Exception as e:
+        return {"error": str(e)}
+    return {"ok": True}
+
+@app.post('/playlists/skip_forward')
+def skip_forward_playlist():
+    try:
+        if device_store.status != "online" or not device_store.amp:
+            raise HTTPException(status_code=400, detail="Device not online")
+        if device_store.active_playlist_details["id"] is None or device_store.active_playlist_details["paused"]:
+            raise HTTPException(status_code=400, detail="No active playlist or playlist is paused")
+        device_store.active_playlist_details["position"] = (device_store.active_playlist_details["position"] + 1) % len(device_store.active_playlist_details["items"])
+
+        device_store.active_playlist_details["slots"] = [device_store.active_playlist_details["items"][(device_store.active_playlist_details["position"]+2) % len(device_store.active_playlist_details["items"])], device_store.active_playlist_details["items"][(device_store.active_playlist_details["position"]+1) % len(device_store.active_playlist_details["items"])]] if device_store.active_playlist_details["current_slot"] == 0 else [device_store.active_playlist_details["items"][(device_store.active_playlist_details["position"]+1) % len(device_store.active_playlist_details["items"])], device_store.active_playlist_details["items"][(device_store.active_playlist_details["position"]+2) % len(device_store.active_playlist_details["items"])]]
+
+
+        device_store.amp.set_qa_slots(device_store.active_playlist_details["slots"])
+        device_store.amp.set_preset(device_store.active_playlist_details["items"][device_store.active_playlist_details["position"]])
+    except Exception as e:
+        return {"error": str(e)}
+    return {"ok": True}
+
+@app.post('/playlists/skip_backward')
+def skip_backward_playlist():
+    try:
+        if device_store.status != "online" or not device_store.amp:
+            raise HTTPException(status_code=400, detail="Device not online")
+        if device_store.active_playlist_details["id"] is None or device_store.active_playlist_details["paused"]:
+            raise HTTPException(status_code=400, detail="No active playlist or playlist is paused")
+        device_store.active_playlist_details["position"] = (device_store.active_playlist_details["position"] - 1 + len(device_store.active_playlist_details["items"])) % len(device_store.active_playlist_details["items"])
+
+        device_store.active_playlist_details["slots"] = [device_store.active_playlist_details["items"][(device_store.active_playlist_details["position"]+2) % len(device_store.active_playlist_details["items"])], device_store.active_playlist_details["items"][(device_store.active_playlist_details["position"]+1) % len(device_store.active_playlist_details["items"])]] if device_store.active_playlist_details["current_slot"] == 0 else [device_store.active_playlist_details["items"][(device_store.active_playlist_details["position"]+1) % len(device_store.active_playlist_details["items"])], device_store.active_playlist_details["items"][(device_store.active_playlist_details["position"]+2) % len(device_store.active_playlist_details["items"])]]
+
+
+        device_store.amp.set_qa_slots(device_store.active_playlist_details["slots"])
+        device_store.amp.set_preset(device_store.active_playlist_details["items"][device_store.active_playlist_details["position"]])
     except Exception as e:
         return {"error": str(e)}
     return {"ok": True}

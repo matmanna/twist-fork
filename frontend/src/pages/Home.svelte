@@ -1,6 +1,8 @@
 <script>
   import HomeHero from '../components/HomeHero.svelte';
   import DeviceStatusCard from '../components/DeviceStatusCard.svelte';
+  import ActivePlaylistCard from '../components/ActivePlaylistCard.svelte';
+  import DeviceControlCard from '../components/DeviceControlCard.svelte';
   import PlaylistsSection from '../components/HomePlaylistsSection.svelte';
 </script>
 
@@ -8,6 +10,10 @@
   <HomeHero />
 
   <DeviceStatusCard />
+
+  <ActivePlaylistCard />
+
+  <DeviceControlCard />
 
   <PlaylistsSection />
 </div>

@@ -170,7 +170,7 @@
       const res = await fetch(`http://${location.host}/playlists/`);
       if (!res.ok) throw new Error('Failed to fetch playlists');
       playlists.set(await res.json());
-			playlistsLoading.set(false);
+      playlistsLoading.set(false);
     } catch (e) {
       toaster.error({
         title: 'Error fetching playlists',
@@ -209,12 +209,10 @@
     }
   }
 
-  async function refreshPlaylistItems() {
+  async function loadPlaylistItems(playlistId) {
     playlistItemsLoading.set(true);
     try {
-      const res = await fetch(
-        `http://${location.host}/playlists/${$routerLocation.split('/')[2]}/items`
-      );
+      const res = await fetch(`http://${location.host}/playlists/${playlistId}/items`);
 
       if (!res.ok) throw new Error('Failed to fetch playlist items');
       playlistItems.set(await res.json());
@@ -226,6 +224,10 @@
     } finally {
       playlistItemsLoading.set(false);
     }
+  }
+
+  async function refreshPlaylistItems() {
+    loadPlaylistItems($routerLocation.split('/')[2]);
   }
 
   $effect(async () => {
@@ -265,7 +267,7 @@
           });
         }
       } else if ($layoutEvents.type === 'create_playlist') {
-        if ($layoutEvents.name ) {
+        if ($layoutEvents.name) {
           createPlaylist($layoutEvents.name, $layoutEvents.description);
         } else {
           toaster.error({
@@ -292,20 +294,93 @@
           title: 'Playlist Started',
           description: `The playlist has been started successfully.`
         });
-      } else if ($layoutEvents.type === 'playlist_stopped') {
-        toaster.success({
-          title: 'Playlist Stopped',
-          description: `The playlist has been stopped successfully.`
-        });
       } else if ($layoutEvents.type === 'playlist_edited') {
-				toaster.success({
-					title: 'Playlist Updated',
-					description: `The playlist has been updated successfully.`
-				});
-				fetchPlaylists();
-			}
+        toaster.success({
+          title: 'Playlist Updated',
+          description: `The playlist has been updated successfully.`
+        });
+        fetchPlaylists();
+      } else if ($layoutEvents.type === 'playlist_stop') {
+        fetch('/playlists/stop', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Accept: 'application/json'
+          }
+        })
+          .then((d) => d.json())
+          .then((data) => {
+            if (data.ok) {
+              toaster.success({
+                title: 'Playlist Stopped',
+                description: 'The active playlist has been stopped.'
+              });
+              activePlaylist.set(null);
+            } else {
+              console.error('Failed to stop playlist:', data.error);
+            }
+          });
+      } else if ($layoutEvents.type === 'playlist_pause') {
+        fetch('/playlists/pause', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Accept: 'application/json'
+          }
+        })
+          .then((d) => d.json())
+          .then((data) => {
+            if (data.ok) {
+              toaster.success({
+                title: 'Playlist Paused',
+                description: 'The active playlist has been paused.'
+              });
+            } else {
+              console.error('Failed to pause playlist:', data.error);
+            }
+          });
 
-      layoutEvents.set(null);
+        layoutEvents.set(null);
+      } else if ($layoutEvents.type == 'playlist_resume') {
+        fetch('/playlists/resume', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Accept: 'application/json'
+          }
+        })
+          .then((d) => d.json())
+          .then((data) => {
+            if (data.ok) {
+              toaster.success({
+                title: 'Playlist Resumed',
+                description: 'The active playlist has been resumed.'
+              });
+            } else {
+              console.error('Failed to resume playlist:', data.error);
+            }
+          });
+      } else if ($layoutEvents.type == 'playlist_skip_forward') {
+        fetch('/playlists/skip_forward', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Accept: 'application/json'
+          }
+        });
+      } else if ($layoutEvents.type == 'playlist_skip_backward') {
+        fetch('/playlists/skip_backward', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Accept: 'application/json'
+          }
+        });
+      } else if ($layoutEvents.type == 'get_active_playlist_items') {
+        if ($activePlaylist && $activePlaylist.id) {
+          loadPlaylistItems($activePlaylist.id);
+        }
+      }
     }
   });
 </script>

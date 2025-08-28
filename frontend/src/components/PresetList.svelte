@@ -1,20 +1,13 @@
 <script>
   import Droppable from '../lib/components/droppable.svelte';
-  import SortableItem from './PresetCard.svelte';
+  import PresetCard from './PresetCard.svelte';
   import { DndContext, DragOverlay } from '@dnd-kit-svelte/core';
   import { SortableContext, arrayMove } from '@dnd-kit-svelte/sortable';
   import { dropAnimation, sensors } from '../lib/dnd.js';
   import { crossfade } from 'svelte/transition';
 
-  let { movePresetItem, deletePresetItem, editPresetItem, playPresetItem } = $props();
+  let { movePresetItem, deletePresetItem, editPresetItem, playPresetItem, position, items } = $props();
 
-  // device state
-  import { playlistItems } from '../stores/state.js';
-
-  let items = $state([]);
-  $effect(() => {
-    items = $playlistItems;
-  });
   let activeId = $state(null);
   const activeItem = $derived(items.find((item) => item.id === activeId));
 
@@ -31,7 +24,7 @@
 
     movePresetItem(active.id, newIndex);
 
-    activeId = null;
+    activeId = nu;
   }
 
   function handleDragOver({ active, over }) {
@@ -53,7 +46,7 @@
 
   <DragOverlay {dropAnimation}>
     {#if activeItem && activeId}
-      <SortableItem item={activeItem} />
+      <PresetCard item={activeItem} />
     {/if}
   </DragOverlay>
 </DndContext>
@@ -67,15 +60,18 @@
         {/if}
         {#each items as item (item.id)}
           <div in:recieve={{ key: item.id }} out:send={{ key: item.id }}>
-            <SortableItem
+            <PresetCard
               {item}
-              deleteMe={() => {
+              selected={item.position === position }
+              deleteMe={deletePresetItem ? () => {
                 deletePresetItem(item.id);
-              }}
-              editMe={(newPreset, newNote) => {
+              } : null}
+              editMe={editPresetItem ? (newPreset, newNote) => {
                 editPresetItem(item.id, newPreset, newNote);
-              }}
-              playMe={() => { playPresetItem(item.id)}}
+              } : null}
+              playMe={playPresetItem ? () => {
+                playPresetItem(item.id);
+              } : null}
             />
           </div>
         {/each}

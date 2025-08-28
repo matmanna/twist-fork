@@ -5,6 +5,7 @@
   import { Modal } from '@skeletonlabs/skeleton-svelte';
   import { Combobox } from '@skeletonlabs/skeleton-svelte';
   import PresetList from '../components/PresetList.svelte';
+  import ActivePlaylistCard from '../components/ActivePlaylistCard.svelte';
 
   // router
   import { link } from 'svelte-spa-router';
@@ -58,10 +59,10 @@
 
   let selectedPreset = $state([]);
 
-	// edit mode
-	let editMode = $state(false);
-	let editedName = $state('');
-	let editedDescription = $state( '');
+  // edit mode
+  let editMode = $state(false);
+  let editedName = $state('');
+  let editedDescription = $state('');
 
   // layout event handlers
   function refetchPlaylistItems() {
@@ -93,6 +94,17 @@
         }
       });
   }
+  function pausePlaylist() {
+    if (!playlist) return;
+
+    layoutEvents.set({ type: 'playlist_pause' });
+  }
+
+  function resumePlaylist() {
+    if (!playlist) return;
+
+    layoutEvents.set({ type: 'playlist_resume' });
+  }
 
   function deletePlaylist() {
     modalClose();
@@ -119,24 +131,7 @@
   }
 
   function stopPlaylist() {
-    fetch('/playlists/stop', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Accept: 'application/json'
-      }
-    })
-      .then((d) => d.json())
-      .then((data) => {
-        if (data.ok) {
-          layoutEvents.set({
-            type: 'playlist_stopped',
-            playlistId: playlist.id
-          });
-        } else {
-          console.error('Failed to stop playlist:', data.error);
-        }
-      });
+    layoutEvents.set({ type: 'playlist_stop' });
   }
 
   function movePresetItem(itemId, newPosition) {
@@ -175,35 +170,35 @@
     });
   }
 
-	function editPresetItem(itemId, newPreset, newNote) {
-		if (!playlist) return;
+  function editPresetItem(itemId, newPreset, newNote) {
+    if (!playlist) return;
 
-		fetch('/playlists/' + playlist.id + '/items/' + itemId, {
-			method: 'PATCH',
-			headers: {
-				'Content-Type': 'application/json',
-				Accept: 'application/json'
-			},
-			body: JSON.stringify({
-				preset_number: newPreset,
-				note: newNote
-			})
-		}).then(() => {
-			refetchPlaylistItems();
-		});
-	}
+    fetch('/playlists/' + playlist.id + '/items/' + itemId, {
+      method: 'PATCH',
+      headers: {
+        'Content-Type': 'application/json',
+        Accept: 'application/json'
+      },
+      body: JSON.stringify({
+        preset_number: newPreset,
+        note: newNote
+      })
+    }).then(() => {
+      refetchPlaylistItems();
+    });
+  }
 
-	function playPresetItem(itemId) {
-		if (!playlist) return;
+  function playPresetItem(itemId) {
+    if (!playlist) return;
 
-		fetch('/playlists/' + playlist.id + '/items/' + itemId + '/play', {
-			method: 'POST',
-			headers: {
-				'Content-Type': 'application/json',
-				Accept: 'application/json'
-			}
-		})
-	}
+    fetch('/playlists/' + playlist.id + '/items/' + itemId + '/play', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Accept: 'application/json'
+      }
+    });
+  }
 
   // utils
   import { formatDate } from '../lib/utils.js';
@@ -256,19 +251,25 @@
   </Modal>
   {#if playlist != null}
     <div class="flex flex-col gap-4 w-full max-w-5xl mx-auto">
-			{#if editMode}
-				<label class="label">
-  <span class="label-text">Name</span>
-  <input class="input" type="text" bind:value={editedName} placeholder="Playlist Name" />
-</label>
-				<label class="label">
-  <span class="label-text">Description</span>  <textarea class="textarea" rows="4" bind:value={editedDescription} placeholder="What this playlist is for (a song, setlist, etc.)"></textarea>
-</label>
-		{:else}
-      <p class="text-sm text-base-content/70">
-        {playlist.description != '~' ? playlist.description : 'No description'}
-      </p>
-		{/if}
+      {#if editMode}
+        <label class="label">
+          <span class="label-text">Name</span>
+          <input class="input" type="text" bind:value={editedName} placeholder="Playlist Name" />
+        </label>
+        <label class="label">
+          <span class="label-text">Description</span>
+          <textarea
+            class="textarea"
+            rows="4"
+            bind:value={editedDescription}
+            placeholder="What this playlist is for (a song, setlist, etc.)"
+          ></textarea>
+        </label>
+      {:else}
+        <p class="text-sm text-base-content/70">
+          {playlist.description != '~' ? playlist.description : 'No description'}
+        </p>
+      {/if}
       <div class="flex flex-row flex-wrap items-center gap-1 text-sm text-base-content/70">
         <span class="flex items-center gap-1">
           <IconSpeaker class="w-4 h-4" />
@@ -285,38 +286,54 @@
             onclick={startPlaylist}>Start</button
           >
         {:else}
-          <button type="buton" class="btn preset-filled-warning-500" onclick={stopPlaylist}
+          <button type="buton" class="btn preset-filled-primary-500" onclick={stopPlaylist}
             >Stop</button
           >
+          {#if $activePlaylist.paused}
+            <button type="button" class="btn preset-filled-tertiary-500" onclick={resumePlaylist}
+              >Resume</button
+            >
+          {:else}
+            <button type="button" class="btn preset-filled-warning-500" onclick={pausePlaylist}
+              >Pause</button
+            >
+          {/if}
         {/if}
-        <button type="button" class="btn preset-filled" onclick={() => {
-					if (editMode) {
-
-						fetch('/playlists/' + playlist.id, {
-							method: 'PATCH',
-							headers: {
-								'Content-Type': 'application/json',
-								Accept: 'application/json'
-							},
-							body: JSON.stringify({
-								name: editedName,
-								description: editedDescription != '' ? editedDescription : '~'
-							})
-						}).then(() => {
-							layoutEvents.set({
-								type: 'playlist_edited',
-								playlistId: playlist.id
-							});
-							editMode = false;
-						});
-					} else {
-						editMode = true;
-						editedName = playlist.name;
-						editedDescription = playlist.description != '~' ? playlist.description : '';
-					}
-				}}>
-			{#if editMode} Save {:else} Edit {/if}
-				</button>
+        <button
+          type="button"
+          class="btn preset-filled"
+          onclick={() => {
+            if (editMode) {
+              fetch('/playlists/' + playlist.id, {
+                method: 'PATCH',
+                headers: {
+                  'Content-Type': 'application/json',
+                  Accept: 'application/json'
+                },
+                body: JSON.stringify({
+                  name: editedName,
+                  description: editedDescription != '' ? editedDescription : '~'
+                })
+              }).then(() => {
+                layoutEvents.set({
+                  type: 'playlist_edited',
+                  playlistId: playlist.id
+                });
+                editMode = false;
+              });
+            } else {
+              editMode = true;
+              editedName = playlist.name;
+              editedDescription = playlist.description != '~' ? playlist.description : '';
+            }
+          }}
+        >
+          {#if editMode}
+            Save
+          {:else}
+            Edit
+          {/if}
+        </button>
         <Modal
           open={openState}
           onOpenChange={(e) => (openState = e.open)}
@@ -344,10 +361,21 @@
         </Modal>
       </div>
     </div>
+    {#if $activePlaylist.id == playlist.id}
+
+      <ActivePlaylistCard onpage />
+    {/if}
     <div class="flex flex-col gap-3 w-full max-w-5xl mx-auto">
-      <p class="text-sm font-semibold text-base-content/80">Presets:</p>
+      <p class="text-sm font-semibold text-base-content/80">Items:</p>
       {#if $playlistItems && $playlistItems.length > 0}
-        <PresetList {movePresetItem} {deletePresetItem} {editPresetItem} {playPresetItem} />
+        <PresetList
+          items={$playlistItems ?? []}
+          {movePresetItem}
+          {deletePresetItem}
+          {editPresetItem}
+          {playPresetItem}
+          position={$activePlaylist.id > 0 ? $activePlaylist.position : null}
+        />
       {:else}
         <p class="text-sm text-base-content/70">No presets in this playlist.</p>
       {/if}
@@ -363,13 +391,12 @@
             value={selectedPreset}
             onValueChange={(e) => (selectedPreset = e.value)}
             openOnClick
-						classes="h-full"
-						inputGroupBase="h-[48px] rounded-none px-2 flex-row flex"
-						inputGroupInput="h-[48px] w-full"
+            classes="h-full"
+            inputGroupBase="h-[48px] rounded-none px-2 flex-row flex"
+            inputGroupInput="h-[48px] w-full"
             loopFocus
             contentBase="max-h-[300px] overflow-y-auto"
             openOnChange
-
             placeholder="Select..."
           >
             {#snippet item(item)}
@@ -378,11 +405,11 @@
                   class=" bg-tertiary-500/30 rounded-md w-8 h-8 text-center flex items-center justify-center"
                 >
                   <p class="text-lg text-base-content/70 font-semibold">
-                    {(item.index + 1).toString().padStart(2, "0")}
+                    {(item.index + 1).toString().padStart(2, '0')}
                   </p>
                 </div>
                 <p class="text-lg text-base-content/70 font-semibold">
-                  {(item.label).split(' - ')[1] ?? '?????????'}
+                  {item.label.split(' - ')[1] ?? '?????????'}
                 </p>
               </div>
             {/snippet}
