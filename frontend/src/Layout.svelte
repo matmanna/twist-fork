@@ -48,7 +48,8 @@
     creatingPlaylist,
     showPlaylistModal,
     allPresets,
-    presetsLoading
+    presetsLoading,
+    activePlaylistItems
   } from './stores/state.js';
 
   let oldDeviceStatus = $state('offline');
@@ -164,6 +165,12 @@
   }
 
   // playlist management
+
+  let activePlaylistObject = $derived(
+    $activePlaylist && $activePlaylist.id > 0
+      ? $playlists.find((p) => p.id === $activePlaylist.id)
+      : null
+  );
   async function fetchPlaylists() {
     playlistsLoading.set(true);
     try {
@@ -209,13 +216,13 @@
     }
   }
 
-  async function loadPlaylistItems(playlistId) {
+  async function loadPlaylistItems(playlistId, oldList = []) {
     playlistItemsLoading.set(true);
     try {
       const res = await fetch(`http://${location.host}/playlists/${playlistId}/items`);
 
       if (!res.ok) throw new Error('Failed to fetch playlist items');
-      playlistItems.set(await res.json());
+      return await res.json();
     } catch (e) {
       toaster.error({
         title: 'Error fetching playlist items',
@@ -224,10 +231,13 @@
     } finally {
       playlistItemsLoading.set(false);
     }
+    return oldList;
   }
 
   async function refreshPlaylistItems() {
-    loadPlaylistItems($routerLocation.split('/')[2]);
+    const newPresetItems = await loadPlaylistItems($routerLocation.split('/')[2]);
+    console.log(newPresetItems);
+    playlistItems.set(newPresetItems);
   }
 
   $effect(async () => {
@@ -294,6 +304,7 @@
           title: 'Playlist Started',
           description: `The playlist has been started successfully.`
         });
+        fetchPlaylists();
       } else if ($layoutEvents.type === 'playlist_edited') {
         toaster.success({
           title: 'Playlist Updated',
@@ -376,11 +387,15 @@
             Accept: 'application/json'
           }
         });
-      } else if ($layoutEvents.type == 'get_active_playlist_items') {
-        if ($activePlaylist && $activePlaylist.id) {
-          loadPlaylistItems($activePlaylist.id);
-        }
       }
+    }
+  });
+  $effect(() => {
+    if (activePlaylistObject) {
+      console.log(activePlaylistObject);
+      loadPlaylistItems(activePlaylistObject.id, activePlaylistItems).then((data) => {
+        activePlaylistItems.set(data);
+      });
     }
   });
 </script>

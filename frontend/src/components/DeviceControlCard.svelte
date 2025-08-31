@@ -60,7 +60,7 @@
 
     <div class="flex flex-row gap-2 w-full justify-center items-center">
       <div
-        class="bg-tertiary-300/10 rounded-md w-36 h-36 text-center flex flex-col items-center justify-center gap-2"
+        class="bg-tertiary-300 dark:bg-tertiary-300/10 rounded-md w-36 h-36 text-center flex flex-col items-center justify-center gap-2"
       >
         <div class="flex flex-row gap-1 items-center">
           <IconPlay

@@ -6,7 +6,7 @@
   import { dropAnimation, sensors } from '../lib/dnd.js';
   import { crossfade } from 'svelte/transition';
 
-  let { movePresetItem, deletePresetItem, editPresetItem, playPresetItem, position, items } = $props();
+  let { movePresetItem, deletePresetItem, editPresetItem, playPresetItem, position, items, activePlaylist = false } = $props();
 
   let activeId = $state(null);
   const activeItem = $derived(items.find((item) => item.id === activeId));
@@ -62,7 +62,7 @@
           <div in:recieve={{ key: item.id }} out:send={{ key: item.id }}>
             <PresetCard
               {item}
-              selected={item.position === position }
+              selected={item.position === position && activePlaylist }
               deleteMe={deletePresetItem ? () => {
                 deletePresetItem(item.id);
               } : null}

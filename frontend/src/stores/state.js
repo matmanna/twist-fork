@@ -18,3 +18,4 @@ export const creatingPlaylist = writable(false);
 export const showPlaylistModal = writable(false);
 export const allPresets = writable([]);
 export const presetsLoading = writable(true);
+export const activePlaylistItems = writable([]);

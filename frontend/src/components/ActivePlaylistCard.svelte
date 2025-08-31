@@ -11,6 +11,7 @@
   import IconSkipForward from '@lucide/svelte/icons/skip-forward';
   import IconSkipBack from '@lucide/svelte/icons/skip-back';
   import IconSquare from '@lucide/svelte/icons/square';
+  import IconTriangleAlert from '@lucide/svelte/icons/triangle-alert';
 
   // ui components
   import { toaster } from '../lib/toaster';
@@ -20,18 +21,15 @@
   // state & events
   import { layoutEvents } from '../stores/events.js';
 
-  import { activePlaylist, playlists, playlistItems } from '../stores/state.js';
-
+  import {
+    activePlaylist,
+    deviceStatus,
+    playlists,
+    playlistItems,
+    activePlaylistItems
+  } from '../stores/state.js';
 
   const { onpage = false } = $props();
-
-
-  $effect(() => {
-    if ($playlistItems.length === 0 && $activePlaylist && $activePlaylist.id) {
-      layoutEvents.set({ type: 'get_active_playlist_items' });
-    }
-  });
-
 
   let activePlaylistObject = $derived(
     $activePlaylist.id > 0 ? $playlists.find((p) => p.id === $activePlaylist.id) : null
@@ -65,21 +63,35 @@
     <header class="mb-2">
       <h2 class="flex flex-row gap-2 items-center text-2xl font-bold">
         <IconListVideo />
-        Active Playlist
+        Playlist Control
       </h2>
     </header>
     <div class="flex flex-col gap-4">
-      {#if activePlaylistObject && !onpage}
+      {#if activePlaylistObject && activePlaylistObject.id && !onpage}
         <PlaylistCard
           playlist={activePlaylistObject}
           className="!p-4 !preset-filled-surface-200-800"
         />
-
+      {/if}
+      {#if $deviceStatus != 'online'}
+        <div
+          class="card preset-outlined-warning-500 grid grid-cols-1 items-center gap-4 p-4 lg:grid-cols-[auto_1fr_auto]"
+        >
+          <IconTriangleAlert />
+          <div>
+            <p class="font-bold">Warning</p>
+            <p class="text-xs opacity-60">
+              Although this playlist is active, the device connection status is problematic.
+            </p>
+          </div>
+        </div>
+      {/if}
+      <div class="relative">
         <PresetList
-          items={!$playlistItems
+          items={!$activePlaylistItems
             ? []
-            : $playlistItems.length > 0
-              ? $playlistItems
+            : $activePlaylistItems.length > 0
+              ? $activePlaylistItems
                   .filter(
                     (i) =>
                       i.position === $activePlaylist.position ||
@@ -90,12 +102,20 @@
               : []}
           position={$activePlaylist.position}
           playPresetItem={() => {}}
-					deletePresetItem={null}
-					movePresetItem={null}
-				editPresetItem={null}
-				
+          deletePresetItem={null}
+          movePresetItem={null}
+          editPresetItem={null}
+          activePlaylist={true}
         />
-      {/if}
+        <div
+          class="w-full h-[25px] bg-gradient-to-b from-surface-100 dark:from-surface-900 to-transparent absolute top-0 left-0"
+        ></div>
+
+        <div
+          class="w-full h-[25px] bg-gradient-to-t from-surface-100 dark:from-surface-900 to-transparent absolute bottom-0 left-0"
+        ></div>
+      </div>
+
       <nav
         class="btn-group preset-outlined-surface-200-800 p-2 items-center justify-center flex-row"
       >

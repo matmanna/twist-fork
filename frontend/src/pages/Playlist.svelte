@@ -362,7 +362,6 @@
       </div>
     </div>
     {#if $activePlaylist.id == playlist.id}
-
       <ActivePlaylistCard onpage />
     {/if}
     <div class="flex flex-col gap-3 w-full max-w-5xl mx-auto">
@@ -375,6 +374,7 @@
           {editPresetItem}
           {playPresetItem}
           position={$activePlaylist.id > 0 ? $activePlaylist.position : null}
+          activePlaylist={$activePlaylist.id == playlist.id}
         />
       {:else}
         <p class="text-sm text-base-content/70">No presets in this playlist.</p>
