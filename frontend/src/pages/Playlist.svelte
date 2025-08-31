@@ -40,12 +40,12 @@
 
   function modalClose() {
     openState = false;
+    nerdOpenState = false;
+    drawerState = false;
   }
   let drawerState = $state(true);
 
-  function drawerClose() {
-    drawerState = false;
-  }
+  let nerdOpenState = $state(false);
 
   const comboboxData = $derived(
     $allPresets && $allPresets.length > 0
@@ -207,6 +207,7 @@
   import IconSpeaker from '@lucide/svelte/icons/speaker';
   import IconTriangleAlert from '@lucide/svelte/icons/triangle-alert';
   import IconListPlus from '@lucide/svelte/icons/list-plus';
+  import IconGlasses from '@lucide/svelte/icons/glasses';
 </script>
 
 <div class="overflow-y-auto flex flex-col gap-6 px-4 lg:px-8 py-4 pb-10 h-[calc(100vh-201px)]">
@@ -237,14 +238,14 @@
         </p>
       </article>
       <footer>
-        <button type="button" class="btn preset-filled" onclick={drawerClose}
+        <button type="button" class="btn preset-filled" onclick={modalClose}
           >Use web UI instead</button
         >
         <button
           type="button"
           class="btn preset-filled"
           disabled={!$activePlaylist.calibrated}
-          onclick={drawerClose}>Done <IconArrowRight size={18} /></button
+          onclick={modalClose}>Done <IconArrowRight size={18} /></button
         >
       </footer>
     {/snippet}
@@ -276,6 +277,42 @@
           {playlist.size} presets •
         </span>
         <span>Updated {formatDate(playlist.last_updated)}</span>
+        {#if $activePlaylist.id == playlist.id}
+					<p>• </p>
+          <span class="badge preset-filled-success-500">Active</span>
+          <Modal
+            open={nerdOpenState}
+            onOpenChange={(e) => (nerdOpenState = e.open)}
+            triggerBase="preset-tonal-surface text-sm underline"
+            contentBase="card bg-surface-100-900 p-4 space-y-4 shadow-xl max-w-screen-sm"
+            backdropClasses="backdrop-blur-sm"
+          >
+            {#snippet trigger()}• Details for Nerds{/snippet}
+            {#snippet content()}
+              <header class="flex flex-row gap-2 items-center">
+                <IconGlasses class="w-8 h-8" />
+                <h4 class="h4">Details for Nerds</h4>
+              </header>
+              <article>
+                <ul class="list-inside list-disc space-y-2">
+                  <li>Footswitch Calibrated? {$activePlaylist.calibrated ? 'Yes' : 'No'}</li>
+                  <li>
+                    Current Playlist Position: {$activePlaylist.position + 1} / {playlist.size}
+                  </li>
+
+                  <li>Paused: {$activePlaylist.paused ? 'Yes' : 'No'}</li>
+
+                  <li>Current Footswitch State: {$activePlaylist.current_slot}</li>
+
+                  <li>Slots: {$activePlaylist.slots.join(', ')}</li>
+                </ul>
+              </article>
+              <footer class="flex justify-end gap-4">
+                <button type="button" class="btn preset-tonal" onclick={modalClose}>Close</button>
+              </footer>
+            {/snippet}
+          </Modal>
+        {/if}
       </div>
       <div class="flex flex-row flex-wrap gap-2.5 items-center">
         {#if $activePlaylist.id != playlist.id}
