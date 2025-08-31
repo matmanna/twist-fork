@@ -1,15 +1,22 @@
 # The Twist
 
 > [!IMPORTANT]
-> This repository is still in the prototype stage with many of The Twist's components, resources, and documentation being WIPs. **Nevertheless, leaving a star helps the project a lot andkeeps you in the loop with progress!**
+> This repository is still in the prototype stage with many of The Twist's components, resources, and documentation being WIP. **Nevertheless, leaving a star (⭐) helps the project and keeps you in the loop!**
 
-🌀 The Bender Twist is a [free](https://en.wikipedia.org/wiki/Free_software), portable platform that augments the functional capabilities of LT-series amps made by a certain guitar brand that rhymes with "bender" and names products after horses.
+🌀 The Bender Twist is a [free](https://en.wikipedia.org/wiki/Free_software), portable platform which augments the functional capabilities of LT-series amps made by a certain guitar brand that rhymes with "bender" and names products after horses.
 
 ## 📌 This Repository
 
 This repository contains the key functionality behind the twist, which is designed to be combined with other add-ons that may be developed in the future (think rechargeable battery support, etc.)
 
-The two main parts within this codebase are the **backend server**--, controlling access point, API, and Amp connectivity functionalities-- and the **frontend control panel**, which provides a user-friendly and easily accessible interface for using and interacting with your Twist device. An overview of both of these parts can be found in the respository's [Wiki Documentation](/wiki):
+The two main parts within this codebase are the **backend server**–controlling access point, API, and Amp connectivity functionalities–and the **frontend control panel**, which provides a user-friendly and easily accessible interface for using and interacting with your Twist device. An overview of both of these parts can be found in the respository's [Wiki Documentation](/wiki).
+
+## ✨ Current features:
+
+- Device connection configuration
+- Device preset remote control
+- Preset (footswitch) playlist management
+- Light/dark UI modes
 
 ## 🖼️ Setup Overview 
 
@@ -46,7 +53,7 @@ cd backend
 uvicorn app:app --host 0.0.0.0 --port 80 --reload
 ```
 
-To build new changes to the Svelte frontend, run:
+To build new changes to the Svelte frontend, run. Unfortunately, due to no amp simulator being built for LtAmp.py (that maintainer should really get on that!!), you may have to build every time you make changes. Sorry :(
 
 ```bash
 cd frontend
