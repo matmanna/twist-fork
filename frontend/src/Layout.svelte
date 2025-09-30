@@ -26,6 +26,8 @@
   import IconCheckCircle from '@lucide/svelte/icons/check-circle';
   import IconAlertTriangle from '@lucide/svelte/icons/alert-triangle';
   import IconXCircle from '@lucide/svelte/icons/x-circle';
+  import IconListVideo from '@lucide/svelte/icons/list-video';
+  import IconGlobe from '@lucide/svelte/icons/globe';
 
   // setup/handle device websockets
   import { onMount } from 'svelte';
@@ -38,13 +40,18 @@
     memoryUsage,
     processorUsage,
     firmwareVersion,
+    activePlaylist,
     playlists,
     playlistsLoading,
+    playlistItems,
+    playlistItemsLoading,
     creatingPlaylist,
-    showPlaylistModal
+    showPlaylistModal,
+    allPresets,
+    presetsLoading,
+    activePlaylistItems
   } from './stores/state.js';
 
-  let syncing = $state(false);
   let oldDeviceStatus = $state('offline');
 
   function waitForSync() {
@@ -57,7 +64,7 @@
           oldDeviceStatus = $deviceStatus;
           reject();
         }
-      }, 2000);
+      }, 1500);
     });
   }
 
@@ -132,6 +139,11 @@
           memoryUsage.set(msg.memory_usage ?? memoryUsage);
           processorUsage.set(msg.processor_usage ?? processorUsage);
           firmwareVersion.set(msg.firmware_version ?? firmwareVersion);
+          allPresets.set(msg.presets ?? allPresets);
+          activePlaylist.set(msg.active_playlist ?? null);
+          if ($allPresets && $allPresets.length > 0) {
+            presetsLoading.set(false);
+          }
         }
       } catch (e) {
         toaster.error({
@@ -153,21 +165,27 @@
   }
 
   // playlist management
+
+  let activePlaylistObject = $derived(
+    $activePlaylist && $activePlaylist.id > 0
+      ? $playlists.find((p) => p.id === $activePlaylist.id)
+      : null
+  );
   async function fetchPlaylists() {
     playlistsLoading.set(true);
     try {
       const res = await fetch(`http://${location.host}/playlists/`);
       if (!res.ok) throw new Error('Failed to fetch playlists');
       playlists.set(await res.json());
+      playlistsLoading.set(false);
     } catch (e) {
       toaster.error({
         title: 'Error fetching playlists',
         description: e.message
       });
-    } finally {
-      playlistsLoading.set(false);
     }
   }
+
   async function createPlaylist(newName, newDescription) {
     creatingPlaylist.set(true);
     try {
@@ -198,10 +216,39 @@
     }
   }
 
+  async function loadPlaylistItems(playlistId, oldList = []) {
+    playlistItemsLoading.set(true);
+    try {
+      const res = await fetch(`http://${location.host}/playlists/${playlistId}/items`);
+
+      if (!res.ok) throw new Error('Failed to fetch playlist items');
+      return await res.json();
+    } catch (e) {
+      toaster.error({
+        title: 'Error fetching playlist items',
+        description: e.message
+      });
+    } finally {
+      playlistItemsLoading.set(false);
+    }
+    return oldList;
+  }
+
+  async function refreshPlaylistItems() {
+    const newPresetItems = await loadPlaylistItems($routerLocation.split('/')[2]);
+    console.log(newPresetItems);
+    playlistItems.set(newPresetItems);
+  }
+
+  $effect(async () => {
+    if ($routerLocation.split('/').includes('playlist')) {
+      await refreshPlaylistItems();
+    }
+  });
+
   onMount(() => {
     connectDeviceWS();
     fetchPlaylists();
-
     return () => wsDevice && wsDevice.close();
   });
 
@@ -230,7 +277,7 @@
           });
         }
       } else if ($layoutEvents.type === 'create_playlist') {
-        if ($layoutEvents.name && $layoutEvents.description) {
+        if ($layoutEvents.name) {
           createPlaylist($layoutEvents.name, $layoutEvents.description);
         } else {
           toaster.error({
@@ -238,9 +285,117 @@
             description: 'Name and description are required to create a playlist.'
           });
         }
-      }
+      } else if ($layoutEvents.type === 'refetch_playlist_items') {
+        if ($routerLocation.split('/').includes('playlist')) {
+          refreshPlaylistItems();
+        }
+      } else if ($layoutEvents.type === 'playlist_deleted') {
+        toaster.success({
+          title: 'Playlist Deleted',
+          description: 'The playlist has been successfully deleted.'
+        });
+        fetchPlaylists();
 
-      layoutEvents.set(null);
+        if ($routerLocation.split('/').includes('playlist')) {
+          window.location.href = '/#/playlists';
+        }
+      } else if ($layoutEvents.type === 'playlist_started') {
+        toaster.success({
+          title: 'Playlist Started',
+          description: `The playlist has been started successfully.`
+        });
+        fetchPlaylists();
+      } else if ($layoutEvents.type === 'playlist_edited') {
+        toaster.success({
+          title: 'Playlist Updated',
+          description: `The playlist has been updated successfully.`
+        });
+        fetchPlaylists();
+      } else if ($layoutEvents.type === 'playlist_stop') {
+        fetch('/playlists/stop', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Accept: 'application/json'
+          }
+        })
+          .then((d) => d.json())
+          .then((data) => {
+            if (data.ok) {
+              toaster.success({
+                title: 'Playlist Stopped',
+                description: 'The active playlist has been stopped.'
+              });
+              activePlaylist.set(null);
+            } else {
+              console.error('Failed to stop playlist:', data.error);
+            }
+          });
+      } else if ($layoutEvents.type === 'playlist_pause') {
+        fetch('/playlists/pause', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Accept: 'application/json'
+          }
+        })
+          .then((d) => d.json())
+          .then((data) => {
+            if (data.ok) {
+              toaster.success({
+                title: 'Playlist Paused',
+                description: 'The active playlist has been paused.'
+              });
+            } else {
+              console.error('Failed to pause playlist:', data.error);
+            }
+          });
+
+        layoutEvents.set(null);
+      } else if ($layoutEvents.type == 'playlist_resume') {
+        fetch('/playlists/resume', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Accept: 'application/json'
+          }
+        })
+          .then((d) => d.json())
+          .then((data) => {
+            if (data.ok) {
+              toaster.success({
+                title: 'Playlist Resumed',
+                description: 'The active playlist has been resumed.'
+              });
+            } else {
+              console.error('Failed to resume playlist:', data.error);
+            }
+          });
+      } else if ($layoutEvents.type == 'playlist_skip_forward') {
+        fetch('/playlists/skip_forward', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Accept: 'application/json'
+          }
+        });
+      } else if ($layoutEvents.type == 'playlist_skip_backward') {
+        fetch('/playlists/skip_backward', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Accept: 'application/json'
+          }
+        });
+      }
+    }
+  });
+  $effect(() => {
+    if (activePlaylistObject) {
+      console.log(activePlaylistObject);
+      loadPlaylistItems(activePlaylistObject.id, activePlaylistItems).then((data) => {
+        activePlaylistItems.set(data);
+      });
     }
   });
 </script>
@@ -250,24 +405,51 @@
     <div class="mx-auto w-full max-w-5xl">
       <AppBar>
         {#snippet lead()}
-          <IconArrowLeft size={24} />
+          {#if $routerLocation.split('/').includes('playlist')}
+            <a href="/#/playlists" class="btn btn-ghost">
+              <IconArrowLeft size={24} />
+            </a>
+          {:else if $routerLocation != '/'}
+            <a href="/#/">
+              <IconHouse size={24} />
+            </a>
+          {:else}
+            <a href="/#/">
+              <IconGlobe size={24} />
+            </a>
+          {/if}
         {/snippet}
         {#snippet trail()}
           <div class="flex flex-row gap-2 items-center"><Lightswitch /></div>
         {/snippet}
         {#snippet headline()}
-          <h2 class="h2">{pageNames[$routerLocation] ?? 'Unknown'}</h2>
+          <h2 class="h2">
+            {#if $routerLocation
+              .split('/')
+              .includes('playlist') && $playlists && $playlists.length > 0}
+              {#if $playlists.find((p) => p.id == $routerLocation.split('/')[2])}
+                <div class="flex flex-row gap-2 items-center">
+                  <IconListVideo class="w-9 h-9 text-primary" />
+                  {$playlists.find((p) => p.id == $routerLocation.split('/')[2]).name}
+                </div>
+              {:else}
+                Unknown Playlist
+              {/if}
+            {:else}
+              {pageNames[$routerLocation] ?? 'Unknown'}
+            {/if}
+          </h2>
         {/snippet}
         <img src="/logo.svg" alt="Bender Logo" class="h-8 mx-auto" />
       </AppBar>
     </div>
   </header>
 
-  <main class="overflow-auto px-4 lg:px-8 py-4 flex flex-col gap-8 w-full relative pb-10">
+  <main class="w-full relative overflow-y-hidden max-h-full">
     <Toaster {toaster}></Toaster>
 
     <Router {routes} let:Component let:params>
-      <Component on:pageAction={handlePageAction} />
+      <Component {params} />
     </Router>
   </main>
 

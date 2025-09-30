@@ -52,7 +52,7 @@
   <header class="mb-2">
     <h2 class="flex flex-row gap-2 items-center text-2xl font-bold">
       <IconWrench />
-      Device Status
+      Device Control
     </h2>
   </header>
   <div class="flex flex-col gap-4">
@@ -60,7 +60,7 @@
 
     <div class="flex flex-row gap-2 w-full justify-center items-center">
       <div
-        class="bg-tertiary-300/10 rounded-md w-36 h-36 text-center flex flex-col items-center justify-center gap-2"
+        class="bg-tertiary-300 dark:bg-tertiary-300/10 rounded-md w-36 h-36 text-center flex flex-col items-center justify-center gap-2"
       >
         <div class="flex flex-row gap-1 items-center">
           <IconPlay
