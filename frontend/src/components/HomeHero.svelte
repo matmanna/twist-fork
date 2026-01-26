@@ -36,7 +36,7 @@
         <p class="xl:text-balance">
           Enabling remote control and unique features such as preset playlist management, learn
           about your gadget's capabilities <a
-            href="https://github.com/bendertools/the-twist/wiki"
+            href="https://github.com/benderhq/the-twist/wiki"
             target="_blank"
             class="anchor">here</a
           >.
@@ -65,3 +65,4 @@
     </div>
   </div>
 </section>
+
