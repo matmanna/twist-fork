@@ -43,7 +43,7 @@ The two main parts within this codebase are the **backend server**--, controllin
    Go to the latest [release](/releases), download the "twist-pi-official-image-v{semver}.img.xz" file, and follow the [flashing guide](/FLASHING.md) to get it on your pi!
    b. Alternatively: SSH into Pi and DIY install
    ```bash
-   git clone https://github.com/bendertools/twist-pi.git
+   git clone https://github.com/benderhq/twist-pi.git
    cd twist-pi
    chmod +x scripts/setup.sh
    ./scripts/setup.sh
@@ -69,3 +69,4 @@ npm run build
 ## 🗺️ Roadmap
 
 Planned features, known bugs, and the overall project roadmap are coorinated using a combination of GitHub's Issues and Projects. The project [tab](https://github.com/bendertools/projects) is where more broad, long-term, and important work is tracked, while day-to-day development progress is reserved for Issues and Pull Requests.
+
